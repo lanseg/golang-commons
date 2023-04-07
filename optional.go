@@ -1,3 +1,4 @@
+// Package optional provides
 package optional
 
 import "errors"
@@ -16,6 +17,7 @@ func True[T any](value T) bool {
 	return true
 }
 
+// Optional is a wrapper that can contain value, nothing or error.
 type Optional[T any] interface {
 	IsPresent() bool
 	Filter(p Predicate[T]) Optional[T]
@@ -23,6 +25,7 @@ type Optional[T any] interface {
 	Get() (T, error)
 }
 
+// Optional subtype that contains a value
 type Just[T any] struct {
 	Optional[T]
 
@@ -48,6 +51,7 @@ func (j Just[T]) Get() (T, error) {
 	return j.value, nil
 }
 
+// Optional subtype that contains nothing
 type Nothing[T any] struct {
 }
 
@@ -67,6 +71,7 @@ func (j Nothing[T]) Get() (T, error) {
 	return *new(T), ErrNoSuchElement
 }
 
+// Optional subtype that contains an error
 type Error[T any] struct {
 	Nothing[T]
 
