@@ -22,4 +22,3 @@ go_test(
         ":optional",
     ],
 )
-

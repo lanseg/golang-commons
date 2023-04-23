@@ -2,9 +2,19 @@ package optional
 
 import (
 	"fmt"
+	"strconv"
+
 	"reflect"
 	"testing"
 )
+
+type someNullable struct {
+	someValue string
+}
+
+type someOtherNullable struct {
+	someValue int
+}
 
 func expect(t *testing.T, value bool, errmsg string) {
 	if !value {
@@ -105,4 +115,92 @@ func TestError(t *testing.T) {
 	if err.Error() != "Whatever" {
 		t.Errorf("Error.Get should return internal error, but got %v", err)
 	}
+}
+
+func TestMap(t *testing.T) {
+
+	for _, tc := range []struct {
+		desc   string
+		opt    Optional[string]
+		mapper func(string) int
+		want   Optional[int]
+	}{
+		{
+			desc: "Map of present",
+			opt:  Of("123"),
+			mapper: func(get string) int {
+				i, _ := strconv.Atoi(get)
+				return i
+			},
+			want: Of(123),
+		},
+		{
+			desc: "Map of nothing returns nothging of different type",
+			opt:  Nothing[string]{},
+			mapper: func(get string) int {
+				i, _ := strconv.Atoi(get)
+				return i
+			},
+			want: Nothing[int]{},
+		},
+		{
+			desc: "Map of Error returns Error of different type",
+			opt:  Error[string]{err: fmt.Errorf("Error message")},
+			mapper: func(get string) int {
+				i, _ := strconv.Atoi(get)
+				return i
+			},
+			want: Error[int]{err: fmt.Errorf("Error message")},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			result := Map(tc.opt, tc.mapper)
+			if !reflect.DeepEqual(result, tc.want) {
+				t.Errorf("Map(%v, mapper) is expected to be %v, but got %v", tc.opt, tc.want, result)
+			}
+		})
+	}
+
+	for _, tc := range []struct {
+		desc   string
+		opt    Optional[*someNullable]
+		mapper func(*someNullable) *someOtherNullable
+		want   Optional[*someOtherNullable]
+	}{
+		{
+			desc: "Map of nullable present",
+			opt:  OfNullable(&someNullable{someValue: "123"}),
+			mapper: func(get *someNullable) *someOtherNullable {
+				i, _ := strconv.Atoi(get.someValue)
+				return &someOtherNullable{someValue: i}
+			},
+			want: OfNullable(&someOtherNullable{someValue: 123}),
+		},
+		{
+			desc: "Map of nullable nothing returns nothging of different type",
+			opt:  Nothing[*someNullable]{},
+			mapper: func(get *someNullable) *someOtherNullable {
+				i, _ := strconv.Atoi(get.someValue)
+				return &someOtherNullable{someValue: i}
+			},
+			want: Nothing[*someOtherNullable]{},
+		},
+		{
+			desc: "Map of nullable Error returns Error of different type",
+			opt:  Error[*someNullable]{err: fmt.Errorf("Error message")},
+			mapper: func(get *someNullable) *someOtherNullable {
+				i, _ := strconv.Atoi(get.someValue)
+				return &someOtherNullable{someValue: i}
+			},
+			want: Error[*someOtherNullable]{err: fmt.Errorf("Error message")},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			result := Map(tc.opt, tc.mapper)
+			if !reflect.DeepEqual(result, tc.want) {
+				t.Errorf("Map(%v, mapper) is expected to be %v, but got %v", tc.opt, tc.want, result)
+			}
+		})
+	}
+
 }

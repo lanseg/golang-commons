@@ -3,7 +3,7 @@ package optional
 
 import "errors"
 
-var ErrNoSuchElement = errors.New("Nothing contains value")
+var ErrNoSuchElement = errors.New("Nothing does not contain value")
 
 type Function[T any, U any] func(arg T) U
 
@@ -82,12 +82,14 @@ func (e Error[T]) Get() (T, error) {
 	return *new(T), e.err
 }
 
+// Constructs an Optional from a value type
 func Of[T any](value T) Optional[T] {
 	return Just[T]{
 		value: value,
 	}
 }
 
+// Constructs an Optional from a value and error (e.g. to wrap a function result)
 func OfError[T any](value T, err error) Optional[T] {
 	if err != nil {
 		return Error[T]{
@@ -97,6 +99,7 @@ func OfError[T any](value T, err error) Optional[T] {
 	return Of(value)
 }
 
+// Constructs an Optional from a pointer type (Nothing if value is nil)
 func OfNullable[T any](value *T) Optional[*T] {
 	if value == nil {
 		return Nothing[*T]{}
@@ -106,6 +109,7 @@ func OfNullable[T any](value *T) Optional[*T] {
 	}
 }
 
+// Constructs an Optional from a pointer type (Nothing if value is nil)
 func OfErrorNullable[T any](value *T, err error) Optional[*T] {
 	if err != nil {
 		return Error[*T]{
@@ -113,4 +117,23 @@ func OfErrorNullable[T any](value *T, err error) Optional[*T] {
 		}
 	}
 	return OfNullable(value)
+}
+
+// Applies a function to an optional if the function returns value and error
+func MapErr[A any, B any](opt Optional[A], f func(A) (B, error)) Optional[B] {
+	maybeValue, maybeErr := opt.Get()
+	if !opt.IsPresent() {
+		if maybeErr == ErrNoSuchElement {
+			return Nothing[B]{}
+		}
+		return OfError(*new(B), maybeErr)
+	}
+	return OfError(f(maybeValue))
+}
+
+// Applies a function to an optional if the function returns value
+func Map[A any, B any](opt Optional[A], f func(A) B) Optional[B] {
+	return MapErr(opt, func(a A) (B, error) {
+		return f(a), nil
+	})
 }
