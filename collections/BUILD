@@ -6,6 +6,7 @@ go_library(
     name = "collections",
     srcs = [
         "tuples.go",
+        "iterator.go",
     ],
     importpath = "github.com/lanseg/golang-commons/collections",
     deps = [
@@ -17,6 +18,7 @@ go_test(
     size = "small",
     srcs = [
         "tuples_test.go",
+        "iterator_test.go",
     ],
     embed = [
         ":collections",
