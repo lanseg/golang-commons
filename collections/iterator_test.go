@@ -78,3 +78,61 @@ func TestSliceIterator(t *testing.T) {
 		}
 	})
 }
+
+type someTree struct {
+	value    string
+	children []*someTree
+}
+
+func TestTreeIterator(t *testing.T) {
+
+	aTree := &someTree{
+		value: "root",
+		children: []*someTree{
+			{value: "1", children: []*someTree{}},
+			{value: "2", children: []*someTree{
+				{value: "4", children: []*someTree{
+					{value: "6", children: []*someTree{}},
+				}},
+			}},
+			{value: "3", children: []*someTree{
+				{value: "5", children: []*someTree{}},
+			}},
+		},
+	}
+	want := []string{"root", "1", "2", "3", "4", "5", "6"}
+
+	t.Run("Iterate normal tree, forEachRemaining", func(t *testing.T) {
+		iterator := IterateTree(aTree, func(t *someTree) []*someTree {
+			return t.children
+		})
+
+		result := []string{}
+		iterator.ForEachRemaining(func(t *someTree) bool {
+			result = append(result, t.value)
+			return false
+		})
+
+		if !reflect.DeepEqual(result, want) {
+			t.Errorf("ForEachRemaining expected to iterate and get (%v), but got (%v)", want, result)
+		}
+	})
+
+	t.Run("Iterate normal tree, for loop", func(t *testing.T) {
+		iterator := IterateTree(aTree, func(t *someTree) []*someTree {
+			return t.children
+		})
+
+		result := []string{}
+		for iterator.HasNext() {
+			r, _ := iterator.Next()
+			result = append(result, r.value)
+		}
+
+		if !reflect.DeepEqual(result, want) {
+			t.Errorf("For loop expected to iterate and get (%v), but got (%v)", want, result)
+		}
+	})
+
+}
+
