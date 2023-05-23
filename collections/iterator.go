@@ -14,10 +14,78 @@ type Iterator[T any] interface {
 	// sequence. If f returns true than iteration is done and we do not need any more
 	// data.
 	ForEachRemaining(f func(item T) bool)
+
+	// Filter creates an iterator which provides only items that satisfy given predicate
+	Filter(predicate func(item T) bool) Iterator[T]
+}
+
+type FilterIterator[T any] struct {
+	Iterator[T]
+
+	ready bool
+	value T
+
+	predicate func(item T) bool
+	parent    Iterator[T]
+}
+
+func (i *FilterIterator[T]) takeUntilMatch() (T, bool) {
+	done := false
+	for !done {
+		value, ok := i.parent.Next()
+		if ok && i.predicate(value) {
+			return value, true
+		}
+		done = !ok
+	}
+	return *new(T), false
+}
+
+func (i *FilterIterator[T]) HasNext() bool {
+	if i.ready {
+		return true
+	}
+	if !i.parent.HasNext() {
+		return false
+	}
+	result, ok := i.takeUntilMatch()
+	if !ok {
+		return false
+	}
+	i.ready = true
+	i.value = result
+	return true
+}
+
+func (i *FilterIterator[T]) Next() (T, bool) {
+	if i.ready {
+		i.ready = false
+		return i.value, true
+	}
+	return i.takeUntilMatch()
+}
+
+func (i *FilterIterator[T]) ForEachRemaining(f func(item T) bool) {
+	done := false
+	for !done {
+		value, ok := i.Next()
+		done = !ok || f(value)
+	}
+}
+
+func (i *FilterIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
+	return newFilteredIterator[T](i, predicate)
+}
+
+func newFilteredIterator[T any](parent Iterator[T], predicate func(item T) bool) Iterator[T] {
+	return &FilterIterator[T]{
+		predicate: predicate,
+		parent:    parent,
+	}
 }
 
 type SliceIterator[T any] struct {
-	Iterator[[]T]
+	Iterator[T]
 	pos int
 
 	slice []T
@@ -41,6 +109,10 @@ func (i *SliceIterator[T]) ForEachRemaining(f func(item T) bool) {
 		result, _ := i.Next()
 		done = f(result)
 	}
+}
+
+func (i *SliceIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
+	return newFilteredIterator[T](i, predicate)
 }
 
 func IterateSlice[T any](slice []T) Iterator[T] {
@@ -77,6 +149,10 @@ func (i *TreeIterator[T]) ForEachRemaining(f func(item T) bool) {
 		result, _ := i.Next()
 		done = f(result)
 	}
+}
+
+func (i *TreeIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
+	return newFilteredIterator[T](i, predicate)
 }
 
 // IterateTree creates a TreeIterator for a root node "root" and a method to get node children.

@@ -77,6 +77,54 @@ func TestSliceIterator(t *testing.T) {
 			t.Errorf("ForEachRemaining expected to iterate over all values, but got %v and %v", resultA, resultB)
 		}
 	})
+
+	gtFilter := func(i int) bool { return i > 4 }
+	for _, tc := range []struct {
+		name   string
+		filter func(x int) bool
+		src    []int
+		want   []int
+	}{
+		{
+			name:   "normal slice filtered",
+			filter: gtFilter,
+			src:    []int{2, 5, 7, 9, 3, 1, 4, 0, 6},
+			want:   []int{5, 7, 9, 6},
+		},
+		{
+			name:   "normal slice, none match",
+			filter: gtFilter,
+			src:    []int{1, 2, 3, 4, 0},
+			want:   []int{},
+		},
+		{
+			name:   "normal slice, all match",
+			filter: gtFilter,
+			src:    []int{5, 6, 7, 8, 9},
+			want:   []int{5, 6, 7, 8, 9},
+		},
+		{
+			name:   "empty slice",
+			filter: gtFilter,
+			src:    []int{},
+			want:   []int{},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := []int{}
+			IterateSlice(tc.src).Filter(tc.filter).ForEachRemaining(func(i int) bool {
+				result = append(result, i)
+				return false
+			})
+			if !reflect.DeepEqual(tc.want, result) {
+				t.Errorf("Result after filtering (%v) expected to be (%v), but got (%v)",
+					tc.src, tc.want, result)
+			}
+		})
+	}
+
+	t.Run("SliceIterator empty slice Filter", func(t *testing.T) {
+	})
 }
 
 type someTree struct {
@@ -87,25 +135,25 @@ type someTree struct {
 func TestTreeIterator(t *testing.T) {
 
 	aTree := &someTree{
-		value: "root",
-		children: []*someTree{
-			{value: "1", children: []*someTree{}},
-			{value: "2", children: []*someTree{
-				{value: "4", children: []*someTree{
-					{value: "6", children: []*someTree{}},
+		"root",
+		[]*someTree{
+			{"1", []*someTree{}},
+			{"2", []*someTree{
+				{"4", []*someTree{
+					{"6", []*someTree{}},
 				}},
 			}},
-			{value: "3", children: []*someTree{
-				{value: "5", children: []*someTree{}},
-			}},
+			{"3", []*someTree{{"5", []*someTree{}}}},
 		},
 	}
+
 	want := []string{"root", "1", "2", "3", "4", "5", "6"}
+	getChildren := func(t *someTree) []*someTree {
+		return t.children
+	}
 
 	t.Run("Iterate normal tree, forEachRemaining", func(t *testing.T) {
-		iterator := IterateTree(aTree, func(t *someTree) []*someTree {
-			return t.children
-		})
+		iterator := IterateTree(aTree, getChildren)
 
 		result := []string{}
 		iterator.ForEachRemaining(func(t *someTree) bool {
@@ -119,9 +167,7 @@ func TestTreeIterator(t *testing.T) {
 	})
 
 	t.Run("Iterate normal tree, for loop", func(t *testing.T) {
-		iterator := IterateTree(aTree, func(t *someTree) []*someTree {
-			return t.children
-		})
+		iterator := IterateTree(aTree, getChildren)
 
 		result := []string{}
 		for iterator.HasNext() {
@@ -134,5 +180,75 @@ func TestTreeIterator(t *testing.T) {
 		}
 	})
 
+	getLeaves := func(i *someTree) bool {
+		return len(i.children) == 0
+	}
+	for _, tc := range []struct {
+		name   string
+		filter func(t *someTree) bool
+		root   *someTree
+		want   []*someTree
+	}{
+		{
+			name:   "filter normal tree",
+			filter: getLeaves,
+			root:   aTree,
+			want: []*someTree{
+				{"1", []*someTree{}},
+				{"5", []*someTree{}},
+				{"6", []*someTree{}},
+			},
+		},
+		{
+			name: "filter none matches",
+			filter: func(i *someTree) bool {
+				return false
+			},
+			root: aTree,
+			want: []*someTree{},
+		},
+		{
+			name:   "filter empty tree",
+			filter: getLeaves,
+			root:   &someTree{"root", []*someTree{}},
+			want:   []*someTree{{"root", []*someTree{}}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := []*someTree{}
+			IterateTree(tc.root, getChildren).Filter(tc.filter).ForEachRemaining(
+				func(n *someTree) bool {
+					result = append(result, n)
+					return false
+				})
+			if !reflect.DeepEqual(result, tc.want) {
+				t.Errorf("Filtering of %v expected to return %v, but got %v",
+					tc.root, tc.want, result)
+			}
+		})
+	}
+
 }
 
+func TestFilterIterator(t *testing.T) {
+
+	src := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+
+	t.Run("Nested filtered iterators", func(t *testing.T) {
+		result := []int{}
+		want := []int{0, 6, 12}
+
+		IterateSlice(src).Filter(func(i int) bool {
+			return i%2 == 0
+		}).Filter(func(i int) bool {
+			return i%3 == 0
+		}).ForEachRemaining(func(i int) bool {
+			result = append(result, i)
+			return false
+		})
+		if !reflect.DeepEqual(result, want) {
+			t.Errorf("Two filters of %v should return %v, but got %v", src, want, result)
+		}
+
+	})
+}
