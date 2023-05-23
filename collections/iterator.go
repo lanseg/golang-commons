@@ -17,6 +17,9 @@ type Iterator[T any] interface {
 
 	// Filter creates an iterator which provides only items that satisfy given predicate
 	Filter(predicate func(item T) bool) Iterator[T]
+
+	// Collect fetches all elements from an iterator and adds them to a slice
+	Collect() []T
 }
 
 type FilterIterator[T any] struct {
@@ -77,6 +80,15 @@ func (i *FilterIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
 	return newFilteredIterator[T](i, predicate)
 }
 
+func (i *FilterIterator[T]) Collect() []T {
+	result := []T{}
+	i.ForEachRemaining(func(item T) bool {
+		result = append(result, item)
+		return false
+	})
+	return result
+}
+
 func newFilteredIterator[T any](parent Iterator[T], predicate func(item T) bool) Iterator[T] {
 	return &FilterIterator[T]{
 		predicate: predicate,
@@ -113,6 +125,15 @@ func (i *SliceIterator[T]) ForEachRemaining(f func(item T) bool) {
 
 func (i *SliceIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
 	return newFilteredIterator[T](i, predicate)
+}
+
+func (i *SliceIterator[T]) Collect() []T {
+	result := []T{}
+	i.ForEachRemaining(func(item T) bool {
+		result = append(result, item)
+		return false
+	})
+	return result
 }
 
 func IterateSlice[T any](slice []T) Iterator[T] {
@@ -153,6 +174,15 @@ func (i *TreeIterator[T]) ForEachRemaining(f func(item T) bool) {
 
 func (i *TreeIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
 	return newFilteredIterator[T](i, predicate)
+}
+
+func (i *TreeIterator[T]) Collect() []T {
+	result := []T{}
+	i.ForEachRemaining(func(item T) bool {
+		result = append(result, item)
+		return false
+	})
+	return result
 }
 
 // IterateTree creates a TreeIterator for a root node "root" and a method to get node children.

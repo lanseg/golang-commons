@@ -111,20 +111,13 @@ func TestSliceIterator(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result := []int{}
-			IterateSlice(tc.src).Filter(tc.filter).ForEachRemaining(func(i int) bool {
-				result = append(result, i)
-				return false
-			})
+			result := IterateSlice(tc.src).Filter(tc.filter).Collect()
 			if !reflect.DeepEqual(tc.want, result) {
 				t.Errorf("Result after filtering (%v) expected to be (%v), but got (%v)",
 					tc.src, tc.want, result)
 			}
 		})
 	}
-
-	t.Run("SliceIterator empty slice Filter", func(t *testing.T) {
-	})
 }
 
 type someTree struct {
@@ -215,12 +208,7 @@ func TestTreeIterator(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result := []*someTree{}
-			IterateTree(tc.root, getChildren).Filter(tc.filter).ForEachRemaining(
-				func(n *someTree) bool {
-					result = append(result, n)
-					return false
-				})
+			result := IterateTree(tc.root, getChildren).Filter(tc.filter).Collect()
 			if !reflect.DeepEqual(result, tc.want) {
 				t.Errorf("Filtering of %v expected to return %v, but got %v",
 					tc.root, tc.want, result)
