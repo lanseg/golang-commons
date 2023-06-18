@@ -5,6 +5,7 @@ package(default_visibility = ["//visibility:public"])
 go_library(
     name = "collections",
     srcs = [
+        "collections.go",
         "iterator.go",
         "tuples.go",
     ],
@@ -17,6 +18,7 @@ go_test(
     name = "collections_test",
     size = "small",
     srcs = [
+        "collections_test.go",
         "iterator_test.go",
         "tuples_test.go",
     ],
