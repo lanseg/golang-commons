@@ -78,6 +78,46 @@ func TestSliceIterator(t *testing.T) {
 		}
 	})
 
+	t.Run("SliceIterator.Peek peek invoked on next", func(t *testing.T) {
+		src := []string{"1", "2", "3", "4"}
+		result := []string{}
+		iter := IterateSlice(src).Peek(func(i string) {
+			result = append(result, i)
+		})
+		iter.Next()
+		iter.Next()
+
+		if !reflect.DeepEqual(result, src[:2]) {
+			t.Errorf("Peek expected to peek %v, but got %v", result, src[:2])
+		}
+	})
+
+	t.Run("SliceIterator.Peek peek invoked on forEachRemaining", func(t *testing.T) {
+		src := []string{"1", "2", "3", "4"}
+		result := []string{}
+		iter := IterateSlice(src).Peek(func(i string) {
+			result = append(result, i)
+		})
+		iter.ForEachRemaining(func(i string) bool {
+			return false
+		})
+		if !reflect.DeepEqual(result, src) {
+			t.Errorf("Peek expected to peek %v, but got %v", result, src[:2])
+		}
+	})
+
+	t.Run("SliceIterator.Peek peek invoked on Collect", func(t *testing.T) {
+		src := []string{"1", "2", "3", "4"}
+		result := []string{}
+		iter := IterateSlice(src).Peek(func(i string) {
+			result = append(result, i)
+		})
+		iter.Collect()
+		if !reflect.DeepEqual(result, src) {
+			t.Errorf("Peek expected to peek %v, but got %v", result, src[:2])
+		}
+	})
+
 	gtFilter := func(i int) bool { return i > 4 }
 	for _, tc := range []struct {
 		name   string
@@ -173,6 +213,16 @@ func TestTreeIterator(t *testing.T) {
 		}
 	})
 
+	t.Run("Iterate normal tree, with picking", func(t *testing.T) {
+		result := []string{}
+		IterateTree(aTree, getChildren).Peek(func(t *someTree) {
+			result = append(result, t.value)
+		}).Collect()
+		if !reflect.DeepEqual(result, want) {
+			t.Errorf("Expected peek to be called for (%v), but got (%v)", want, result)
+		}
+	})
+
 	getLeaves := func(i *someTree) bool {
 		return len(i.children) == 0
 	}
@@ -222,12 +272,15 @@ func TestFilterIterator(t *testing.T) {
 
 	src := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
 
-	t.Run("Nested filtered iterators", func(t *testing.T) {
+	t.Run("Nested filtered iterators with peek", func(t *testing.T) {
 		result := []int{}
 		want := []int{0, 6, 12}
-
+		peeked := []int{}
+		wantPeek := []int{0, 2, 4, 6, 8, 10, 12}
 		IterateSlice(src).Filter(func(i int) bool {
 			return i%2 == 0
+		}).Peek(func(i int) {
+			peeked = append(peeked, i)
 		}).Filter(func(i int) bool {
 			return i%3 == 0
 		}).ForEachRemaining(func(i int) bool {
@@ -236,6 +289,9 @@ func TestFilterIterator(t *testing.T) {
 		})
 		if !reflect.DeepEqual(result, want) {
 			t.Errorf("Two filters of %v should return %v, but got %v", src, want, result)
+		}
+		if !reflect.DeepEqual(peeked, wantPeek) {
+			t.Errorf("Expected peeked values to be (%v), but got (%v)", wantPeek, peeked)
 		}
 
 	})

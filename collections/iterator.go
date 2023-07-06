@@ -18,8 +18,57 @@ type Iterator[T any] interface {
 	// Filter creates an iterator which provides only items that satisfy given predicate
 	Filter(predicate func(item T) bool) Iterator[T]
 
+	// Peek returns an iterator that additionally performs given action on each element
+	Peek(func(item T)) Iterator[T]
+
 	// Collect fetches all elements from an iterator and adds them to a slice
 	Collect() []T
+}
+
+type Peeker[T any] struct {
+	Iterator[T]
+
+	peek   func(item T)
+	parent Iterator[T]
+}
+
+func (i Peeker[T]) HasNext() bool {
+	return i.parent.HasNext()
+}
+
+func (i Peeker[T]) Next() (T, bool) {
+	next, ok := i.parent.Next()
+	if ok {
+		i.peek(next)
+	}
+	return next, ok
+}
+
+func (i Peeker[T]) ForEachRemaining(f func(item T) bool) {
+	i.parent.ForEachRemaining(func(item T) bool {
+		i.peek(item)
+		return f(item)
+	})
+}
+
+func (i Peeker[T]) Filter(predicate func(item T) bool) Iterator[T] {
+	return newFilteredIterator[T](i, predicate)
+}
+
+func (i Peeker[T]) Peek(peek func(item T)) Iterator[T] {
+	return &Peeker[T]{
+		peek:   peek,
+		parent: i,
+	}
+}
+
+func (i Peeker[T]) Collect() []T {
+	result := []T{}
+	i.ForEachRemaining(func(item T) bool {
+		result = append(result, item)
+		return false
+	})
+	return result
 }
 
 type FilterIterator[T any] struct {
@@ -80,6 +129,13 @@ func (i *FilterIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
 	return newFilteredIterator[T](i, predicate)
 }
 
+func (i *FilterIterator[T]) Peek(peek func(item T)) Iterator[T] {
+	return &Peeker[T]{
+		peek:   peek,
+		parent: i,
+	}
+}
+
 func (i *FilterIterator[T]) Collect() []T {
 	result := []T{}
 	i.ForEachRemaining(func(item T) bool {
@@ -125,6 +181,13 @@ func (i *SliceIterator[T]) ForEachRemaining(f func(item T) bool) {
 
 func (i *SliceIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
 	return newFilteredIterator[T](i, predicate)
+}
+
+func (i *SliceIterator[T]) Peek(peek func(item T)) Iterator[T] {
+	return &Peeker[T]{
+		peek:   peek,
+		parent: i,
+	}
 }
 
 func (i *SliceIterator[T]) Collect() []T {
@@ -174,6 +237,13 @@ func (i *TreeIterator[T]) ForEachRemaining(f func(item T) bool) {
 
 func (i *TreeIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
 	return newFilteredIterator[T](i, predicate)
+}
+
+func (i *TreeIterator[T]) Peek(peek func(item T)) Iterator[T] {
+	return &Peeker[T]{
+		peek:   peek,
+		parent: i,
+	}
 }
 
 func (i *TreeIterator[T]) Collect() []T {
