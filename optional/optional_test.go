@@ -90,6 +90,13 @@ func TestNothing(t *testing.T) {
 	if err != ErrNoSuchElement {
 		t.Errorf("Nothing.Get should return error")
 	}
+
+	ptr := new(string)
+	*ptr = "123456"
+	nothing.IfPresent(func(s string) {
+		*ptr = "ifpresent"
+	})
+	expect(t, *ptr == "123456", "Nothing.IfPresent should not be invoked")
 }
 
 func TestJust(t *testing.T) {
@@ -105,6 +112,13 @@ func TestJust(t *testing.T) {
 	if err == ErrNoSuchElement || value != "whatever" {
 		t.Errorf("Nothing.Get should return error")
 	}
+
+	ptr := new(string)
+	*ptr = "123456"
+	just.IfPresent(func(s string) {
+		*ptr = s
+	})
+	expect(t, *ptr == just.value, "Just.IfPresent should be invoked")
 }
 
 func TestError(t *testing.T) {

@@ -20,6 +20,7 @@ func True[T any](value T) bool {
 // Optional is a wrapper that can contain value, nothing or error.
 type Optional[T any] interface {
 	IsPresent() bool
+	IfPresent(func(T))
 	Filter(p Predicate[T]) Optional[T]
 	OrElse(other T) T
 	Get() (T, error)
@@ -34,6 +35,10 @@ type Just[T any] struct {
 
 func (j Just[T]) IsPresent() bool {
 	return true
+}
+
+func (j Just[T]) IfPresent(f func(T)) {
+	f(j.value)
 }
 
 func (j Just[T]) Filter(p Predicate[T]) Optional[T] {
@@ -58,6 +63,8 @@ type Nothing[T any] struct {
 func (j Nothing[T]) IsPresent() bool {
 	return false
 }
+
+func (j Nothing[T]) IfPresent(_ func(T)) {}
 
 func (j Nothing[T]) Filter(p Predicate[T]) Optional[T] {
 	return j
