@@ -36,9 +36,9 @@ func TestSliceIterator(t *testing.T) {
 	t.Run("SliceIterator.HasNext for a slice", func(t *testing.T) {
 		slice := IterateSlice([]string{"1", "2", "3", "4"})
 		for _, expect := range []bool{true, true, true, true, false} {
-			if slice.HasNext() != expect {
-				t.Errorf("HasNext expected to return %v, but got %v",
-					slice.HasNext, expect)
+			hasNext := slice.HasNext()
+			if hasNext != expect {
+				t.Errorf("HasNext expected to return %v, but got %v", expect, hasNext)
 				break
 			}
 			slice.Next()
