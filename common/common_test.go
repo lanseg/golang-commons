@@ -52,3 +52,45 @@ func TestIfNull (t *testing.T) {
 	}
 }
 
+func TestIfEmpty (t *testing.T) {
+	for _, tc := range []struct {
+		desc     string
+        a string
+        b string
+        want string
+	}{
+		{
+			desc:  "both empty return empty",
+            a: "",
+            b: "",
+            want: "",
+		},
+        {
+            desc: "a not empty, b empty returns a",
+            a: "someA",
+            b: "",
+            want: "someA",
+        },
+        {
+            desc: "a empty, b not empty returns b",
+            a: "",
+            b: "someB",
+            want: "someB",
+        },
+        {
+            desc: "a not empty, b not empty, returns a",
+            a: "someA",
+            b: "someB",
+            want: "someA",
+        },
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			result := IfEmpty(tc.a, tc.b)
+			if result != tc.want {
+				t.Errorf("IfEmpty(%v, %v) expected to be %v, but got %v", tc.a, tc.b,
+					tc.want, result)
+			}
+		})
+	}
+}
+

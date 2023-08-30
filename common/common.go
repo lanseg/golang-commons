@@ -6,3 +6,10 @@ func IfNull[T any](a *T, b *T) *T {
     }
     return a
 }
+
+func IfEmpty(a string, b string) string {
+    if a == "" {
+        return b
+    }
+    return a
+}
