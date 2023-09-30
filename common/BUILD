@@ -6,6 +6,7 @@ go_library(
     name = "common",
     srcs = [
         "common.go",
+        "logging.go",
         "uuid.go",
     ],
     importpath = "github.com/lanseg/golang-commons/common",
@@ -18,6 +19,7 @@ go_test(
     size = "small",
     srcs = [
         "common_test.go",
+        "logging_test.go",
         "uuid_test.go",
     ],
     embed = [
