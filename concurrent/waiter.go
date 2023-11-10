@@ -44,6 +44,8 @@ func newWaiter[T any]() *waiter[T] {
 	}
 }
 
+// WaitForSomething blocks until src returns optional with value or with error.
+// By default, it tries 30 times with 1 second interval between retries
 func WaitForSomething[T any](src ValueProvider[T]) optional.Optional[T] {
 	waiter := newWaiter[T]()
 	waiter.provider = src
@@ -53,6 +55,8 @@ func WaitForSomething[T any](src ValueProvider[T]) optional.Optional[T] {
 	return waiter.Wait()
 }
 
+// WaitForValue blocks until src returns optional with given value or with error.
+// By default, it tries 30 times with 1 second interval between retries
 func WaitForValue[T comparable](value T, src ValueProvider[T]) {
 	waiter := newWaiter[T]()
 	waiter.provider = src
