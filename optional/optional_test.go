@@ -3,6 +3,7 @@ package optional
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"reflect"
 	"testing"
@@ -86,6 +87,8 @@ func TestNothing(t *testing.T) {
 	expect(t, !nothing.IsPresent(), "Nothing.IsPresent should return false")
 	expect(t, nothing.Filter(False[string]) == nothing, "Nothing.Filter should return nothing")
 	expect(t, nothing.OrElse("whatever") == "whatever", "Nothing.OrElse should return else value")
+	expect(t, nothing.Map(strings.ToLower) == nothing, "Nothing.Map should return nothing")
+
 	_, err := nothing.Get()
 	if err != ErrNoSuchElement {
 		t.Errorf("Nothing.Get should return error")
@@ -108,6 +111,12 @@ func TestJust(t *testing.T) {
 	expect(t, just.Filter(False[string]) == Nothing[string]{}, "Just.Filter should return nothing for false")
 	expect(t, just.Filter(True[string]) == just, "Just.Filter should return itself for true")
 	expect(t, just.OrElse("whatever2") == "whatever", "Just.OrElse should return its value")
+
+	upper, _ := just.Map(strings.ToUpper).Get()
+	if upper != "WHATEVER" {
+		t.Errorf("Just.Map expected to change value")
+	}
+
 	value, err := just.Get()
 	if err == ErrNoSuchElement || value != "whatever" {
 		t.Errorf("Nothing.Get should return error")

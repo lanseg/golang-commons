@@ -24,6 +24,7 @@ type Optional[T any] interface {
 	Filter(p Predicate[T]) Optional[T]
 	OrElse(other T) T
 	Get() (T, error)
+	Map(func(T) T) Optional[T]
 }
 
 // Optional subtype that contains a value
@@ -56,6 +57,12 @@ func (j Just[T]) Get() (T, error) {
 	return j.value, nil
 }
 
+func (j Just[T]) Map(f func(T) T) Optional[T] {
+	return Just[T]{
+		value: f(j.value),
+	}
+}
+
 // Optional subtype that contains nothing
 type Nothing[T any] struct {
 }
@@ -76,6 +83,10 @@ func (j Nothing[T]) OrElse(other T) T {
 
 func (j Nothing[T]) Get() (T, error) {
 	return *new(T), ErrNoSuchElement
+}
+
+func (j Nothing[T]) Map(func(T) T) Optional[T] {
+	return j
 }
 
 // Optional subtype that contains an error

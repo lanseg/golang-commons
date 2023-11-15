@@ -19,13 +19,13 @@ func newValueProvider[T any](value T) ValueProvider[T] {
 }
 
 func newValueAfterRetries[T any](value T, setAfter int) ValueProvider[T] {
-    return func() optional.Optional[T] {
-        setAfter--
-        if setAfter <= 0 {
-          return optional.Of[T](value)
-        }
-        return optional.Nothing[T]{}
-    }
+	return func() optional.Optional[T] {
+		setAfter--
+		if setAfter <= 0 {
+			return optional.Of[T](value)
+		}
+		return optional.Nothing[T]{}
+	}
 }
 
 func newNothingProvider[T any]() ValueProvider[T] {
@@ -49,28 +49,28 @@ func TestWaitForSomething(t *testing.T) {
 		result := newWaiter[string](
 			NewIsPresent[string](),
 			newNothingProvider[string]()).Wait()
-	    if result.IsPresent() {
-            t.Errorf("Expected result not to be present, but got %v", result)
-        }
-    })
+		if result.IsPresent() {
+			t.Errorf("Expected result not to be present, but got %v", result)
+		}
+	})
 
-    t.Run("successful run got a value immediately", func(t *testing.T) {
-         result := newWaiter[string](
-             NewIsPresent[string](),
-             newValueProvider[string]("SomeValue")).Wait()
-         value, _ := result.Get()
-         if value != "SomeValue" {
-             t.Errorf("Expected to get value, but got %v", result)
-         }
-    })
+	t.Run("successful run got a value immediately", func(t *testing.T) {
+		result := newWaiter[string](
+			NewIsPresent[string](),
+			newValueProvider[string]("SomeValue")).Wait()
+		value, _ := result.Get()
+		if value != "SomeValue" {
+			t.Errorf("Expected to get value, but got %v", result)
+		}
+	})
 
-    t.Run("successful run got a value after retries", func(t *testing.T) {
-         result := newWaiter[string](
-             NewIsPresent[string](),
-             newValueAfterRetries[string]("SomeValue", 4)).Wait()
-         value, _ := result.Get()
-         if value != "SomeValue" {
-             t.Errorf("Expected to get value, but got %v", result)
-         }
-    })
+	t.Run("successful run got a value after retries", func(t *testing.T) {
+		result := newWaiter[string](
+			NewIsPresent[string](),
+			newValueAfterRetries[string]("SomeValue", 4)).Wait()
+		value, _ := result.Get()
+		if value != "SomeValue" {
+			t.Errorf("Expected to get value, but got %v", result)
+		}
+	})
 }
