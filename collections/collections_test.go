@@ -146,3 +146,56 @@ func TestNewMap(t *testing.T) {
 		})
 	}
 }
+
+func TestSetContainsAll(t *testing.T) {
+	for _, tc := range []struct {
+		desc  string
+		tset  []string
+		items []string
+		want  bool
+	}{
+		{
+			desc:  "set has exactly same items should return true",
+			tset:  []string{"a", "b", "c", "d"},
+			items: []string{"a", "b", "c", "d"},
+			want:  true,
+		},
+		{
+			desc:  "set has elements from items should return true",
+			tset:  []string{"a", "b", "c", "d", "e"},
+			items: []string{"b", "d", "c"},
+			want:  true,
+		},
+		{
+			desc:  "set contains some elements from items should return false",
+			tset:  []string{"a", "b", "c", "d"},
+			items: []string{"b", "c", "e"},
+			want:  false,
+		},
+		{
+			desc:  "set contains no elements from items should return false",
+			tset:  []string{"a", "b", "c", "d"},
+			items: []string{"g", "h", "i"},
+			want:  false,
+		},
+		{
+			desc:  "empty set should return false",
+			tset:  []string{},
+			items: []string{"b", "c", "e"},
+			want:  false,
+		},
+        {
+            desc: "empty items should return true",
+            tset: []string{"1", "2", "3"},
+            items: []string{},
+            want: true,
+        },
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			if tc.want != NewSet(tc.tset).ContainsAll(tc.items) {
+				t.Errorf("Expected Set(%v).ContainsAll(%v) to be %v, but got %v",
+					tc.tset, tc.items, tc.want, !tc.want)
+			}
+		})
+	}
+}

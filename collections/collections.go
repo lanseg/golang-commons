@@ -106,6 +106,16 @@ func (s *Set[T]) Contains(item T) bool {
 	return ok
 }
 
+// ContainsAll checks if the set contains all items from the slice
+func (s *Set[T]) ContainsAll(items []T) bool {
+	for _, item := range items {
+		if _, ok := s.values[item]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Set[T]) Clear() {
 	s.values = map[T]bool{}
 }
