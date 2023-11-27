@@ -1,5 +1,12 @@
 package collections
 
+type TraverseOrder int
+
+const (
+	DepthFirst   = TraverseOrder(1)
+	BreadthFirst = TraverseOrder(2)
+)
+
 // Iterator provides an iterator for a sequential data that cannot be put into a slice
 // like custom list implementations or sequences with no known length.
 type Iterator[T any] interface {
@@ -210,6 +217,7 @@ func IterateSlice[T any](slice []T) Iterator[T] {
 type TreeIterator[T any] struct {
 	Iterator[T]
 
+	order       TraverseOrder
 	toVisit     []T
 	getChildren func(node T) []T
 }
@@ -223,7 +231,12 @@ func (i *TreeIterator[T]) Next() (T, bool) {
 		return *new(T), false
 	}
 	next, remain := i.toVisit[0], i.toVisit[1:]
-	i.toVisit = append(remain, i.getChildren(next)...)
+	switch i.order {
+	case BreadthFirst:
+		i.toVisit = append(remain, i.getChildren(next)...)
+	case DepthFirst:
+		i.toVisit = append(i.getChildren(next), remain...)
+	}
 	return next, true
 }
 
@@ -256,8 +269,10 @@ func (i *TreeIterator[T]) Collect() []T {
 }
 
 // IterateTree creates a TreeIterator for a root node "root" and a method to get node children.
-func IterateTree[T any](root T, getChildren func(T) []T) *TreeIterator[T] {
+// Uses BFS by default
+func IterateTree[T any](root T, order TraverseOrder, getChildren func(T) []T) *TreeIterator[T] {
 	return &TreeIterator[T]{
+		order:       order,
 		toVisit:     []T{root},
 		getChildren: getChildren,
 	}

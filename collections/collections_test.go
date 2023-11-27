@@ -184,12 +184,12 @@ func TestSetContainsAll(t *testing.T) {
 			items: []string{"b", "c", "e"},
 			want:  false,
 		},
-        {
-            desc: "empty items should return true",
-            tset: []string{"1", "2", "3"},
-            items: []string{},
-            want: true,
-        },
+		{
+			desc:  "empty items should return true",
+			tset:  []string{"1", "2", "3"},
+			items: []string{},
+			want:  true,
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.want != NewSet(tc.tset).ContainsAll(tc.items) {

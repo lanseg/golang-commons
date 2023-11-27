@@ -185,8 +185,23 @@ func TestTreeIterator(t *testing.T) {
 		return t.children
 	}
 
+	t.Run("Iterate normal tree, DepthFirst", func(t *testing.T) {
+		iterator := IterateTree(aTree, DepthFirst, getChildren)
+
+		result := []string{}
+		iterator.ForEachRemaining(func(t *someTree) bool {
+			result = append(result, t.value)
+			return false
+		})
+
+		if !reflect.DeepEqual(result, []string{"root", "1", "2", "4", "6", "3", "5"}) {
+			t.Errorf("ForEachRemaining expected to iterate and get (%v), but got (%v)", want, result)
+		}
+
+	})
+
 	t.Run("Iterate normal tree, forEachRemaining", func(t *testing.T) {
-		iterator := IterateTree(aTree, getChildren)
+		iterator := IterateTree(aTree, BreadthFirst, getChildren)
 
 		result := []string{}
 		iterator.ForEachRemaining(func(t *someTree) bool {
@@ -200,7 +215,7 @@ func TestTreeIterator(t *testing.T) {
 	})
 
 	t.Run("Iterate normal tree, for loop", func(t *testing.T) {
-		iterator := IterateTree(aTree, getChildren)
+		iterator := IterateTree(aTree, BreadthFirst, getChildren)
 
 		result := []string{}
 		for iterator.HasNext() {
@@ -215,7 +230,7 @@ func TestTreeIterator(t *testing.T) {
 
 	t.Run("Iterate normal tree, with picking", func(t *testing.T) {
 		result := []string{}
-		IterateTree(aTree, getChildren).Peek(func(t *someTree) {
+		IterateTree(aTree, BreadthFirst, getChildren).Peek(func(t *someTree) {
 			result = append(result, t.value)
 		}).Collect()
 		if !reflect.DeepEqual(result, want) {
@@ -258,7 +273,7 @@ func TestTreeIterator(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result := IterateTree(tc.root, getChildren).Filter(tc.filter).Collect()
+			result := IterateTree(tc.root, BreadthFirst, getChildren).Filter(tc.filter).Collect()
 			if !reflect.DeepEqual(result, tc.want) {
 				t.Errorf("Filtering of %v expected to return %v, but got %v",
 					tc.root, tc.want, result)
