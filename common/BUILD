@@ -6,6 +6,7 @@ go_library(
     name = "common",
     srcs = [
         "common.go",
+        "config.go",
         "logging.go",
         "strings.go",
         "uuid.go",
@@ -20,10 +21,12 @@ go_test(
     size = "small",
     srcs = [
         "common_test.go",
+        "config_test.go",
         "logging_test.go",
         "strings_test.go",
         "uuid_test.go",
     ],
+    data = glob(["testdata/*"]),     
     embed = [
         ":common",
     ],

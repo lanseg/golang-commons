@@ -1,0 +1,5 @@
+{
+  "StringField": "Whatever",
+  "AnotherStringField": "Anyway",
+  "IntegerField": 12345678
+}

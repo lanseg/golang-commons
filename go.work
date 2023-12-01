@@ -5,5 +5,4 @@ use (
 	./common
 	./concurrent
 	./optional
-	./tinyhtml
 )
