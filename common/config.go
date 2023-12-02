@@ -16,26 +16,32 @@ type fieldValue struct {
 // GetConfig loads configuration defined by type T.
 // Initial configuration is loaded from file defined by the "config" flag,
 // File values could be overridden by the command line flags.
-func GetConfig[T any](args []string, configFile *string) (*T, error) {
+func GetConfig[T any](args []string, configPathFlag string) (*T, error) {
 	fs := flag.NewFlagSet("config flags", flag.ContinueOnError)
-	config := new(T)
 
-	if configFile != nil && *configFile != "" {
-		if err := loadConfigFromFile(config, *configFile); err != nil {
-			return nil, err
-		}
+	var configPath *string
+	if configPathFlag != "" {
+		configPath = fs.String(configPathFlag, "", "Path to the config file")
 	}
 
+	config := new(T)
 	fieldFlags, err := defineConfigFlags[T](fs, config)
 	if err != nil {
 		return nil, err
 	}
-
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
 
+	if configPath != nil && *configPath != "" {
+		if err := loadConfigFromFile(config, *configPath); err != nil {
+			return nil, err
+		}
+	}
 	fs.Visit(func(f *flag.Flag) {
+		if f.Name == configPathFlag {
+			return
+		}
 		fv := fieldFlags[f.Name]
 		fv.field.Set(reflect.ValueOf(fv.value))
 	})

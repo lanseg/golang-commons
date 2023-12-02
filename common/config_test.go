@@ -83,11 +83,10 @@ func TestConfig(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var tcfile *string
 			if tc.file != "" {
-				tcfile = ptr(filepath.Join("testdata", tc.file))
+				tc.args = append(tc.args, "--config", filepath.Join("testdata", tc.file))
 			}
-			config, err := GetConfig[Config](tc.args, tcfile)
+			config, err := GetConfig[Config](tc.args, "config")
 			if err != nil {
 				t.Errorf("Unexpected error: %s", err)
 			} else if !reflect.DeepEqual(tc.want, config) {
