@@ -72,3 +72,12 @@ func WaitForValue[T comparable](value T, src ValueProvider[T]) {
 		retryCount: defaultWaiterRetries,
 	}).Wait()
 }
+
+func WaitForValueRetries[T comparable](value T, src ValueProvider[T], retryCount int) {
+	(&Waiter[T]{
+		condition:  NewEquals[T](value),
+		provider:   src,
+		interval:   defaultWaiterInterval,
+		retryCount: retryCount,
+	}).Wait()
+}
