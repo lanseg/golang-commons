@@ -114,9 +114,13 @@ func ParseHTML(doc string) (*Node, error) {
 		raw := string(runes[t.start:t.end])
 		switch t.tokenType {
 		case dataState:
-			nodes = append(nodes, newDataNode(raw))
+			if len(t.values) > 0 {
+				nodes = append(nodes, newDataNode(t.values[0]))
+			}
 		case tagScriptState:
-			nodes = append(nodes, newDataNode(raw))
+			if len(t.values) > 0 {
+				nodes = append(nodes, newDataNode(t.values[0]))
+			}
 		case tagState:
 			node := newNode(t.name)
 			node.Raw = raw

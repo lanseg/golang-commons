@@ -107,7 +107,7 @@ func (t *tokenizer) newToken() {
 	tok := &token{
 		values:    []string{},
 		tokenType: t.state,
-		start:     t.pos + 1,
+		start:     t.pos,
 		empty:     true,
 	}
 	lastIndex := len(t.tokens) - 1
@@ -139,6 +139,7 @@ func tokenize(doc string) []*token {
 		case dataState:
 			if r == '<' {
 				t.setState(tagState)
+				t.pos = i + 1
 				t.newToken()
 			} else {
 				t.feed(r)

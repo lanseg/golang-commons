@@ -48,6 +48,11 @@ func TestHTML(t *testing.T) {
 		want *Node
 	}{
 		{
+			name: "Plain text only",
+			html: "Hello world",
+			want: makeNode("#root", "", makeText("Hello world")),
+		},
+		{
 			name: "Simple tag no nested",
 			html: "<node>Whatever</node>",
 			want: makeNode("#root", "",

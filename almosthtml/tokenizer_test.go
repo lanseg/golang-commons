@@ -18,6 +18,18 @@ func TestTokenizer(t *testing.T) {
 			want: []*token{},
 		},
 		{
+			name: "Plain text",
+			html: "Hello world",
+			want: []*token{
+				{
+					values:    []string{"Hello world"},
+					tokenType: dataState,
+					start:     0,
+					end:       11,
+				},
+			},
+		},
+		{
 			name: "Tag without text",
 			html: "<html>",
 			want: []*token{
@@ -105,7 +117,7 @@ func TestTokenizer(t *testing.T) {
 				{
 					values:    []string{"function doit(){\n  console.log(\"<tag>\");\n}</script"},
 					tokenType: tagScriptState,
-					start:     8,
+					start:     7,
 					end:       58,
 				},
 			},
@@ -124,7 +136,7 @@ func TestTokenizer(t *testing.T) {
 				{
 					values:    []string{" function somefunc() {\n  console.log(\"HERE\");\n} </script"},
 					tokenType: tagScriptState,
-					start:     8,
+					start:     7,
 					end:       64,
 				},
 			},
@@ -189,7 +201,7 @@ func TestTokenizer(t *testing.T) {
 				{
 					values:    []string{"Some text without any tags"},
 					tokenType: dataState,
-					start:     1,
+					start:     0,
 					end:       26,
 				},
 			},
@@ -208,8 +220,8 @@ func TestTokenizer(t *testing.T) {
 				{
 					values:    []string{" some text "},
 					tokenType: dataState,
-					start:     6,
-					end:       17,
+					start:     5,
+					end:       18,
 				},
 				{
 					name:      "/html",
