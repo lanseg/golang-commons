@@ -1,10 +1,4 @@
 module (name = "golang-commons", repo_name = "com_github_lanseg_golang_commons", version = "0.1")
 
 bazel_dep(name = "rules_go", version = "0.44.0")
-git_override(
-    module_name = "rules_go", 
-    remote = "https://github.com/bazelbuild/rules_go.git", 
-    commit = "origin/master"
-)
-
 
