@@ -7,6 +7,4 @@ git_override(
     commit = "origin/master"
 )
 
-go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
-go_sdk.host()
 
