@@ -277,3 +277,65 @@ func IterateTree[T any](root T, order TraverseOrder, getChildren func(T) []T) *T
 		getChildren: getChildren,
 	}
 }
+
+type multiIterator[T any] struct {
+	Iterator[T]
+
+	current   int
+	iterators []Iterator[T]
+}
+
+func (i *multiIterator[T]) HasNext() bool {
+	for _, is := range i.iterators {
+		if is.HasNext() {
+			return true
+		}
+	}
+	return false
+}
+
+func (i *multiIterator[T]) Next() (T, bool) {
+	for cur := 0; cur < len(i.iterators); cur++ {
+		iterIndex := (cur + i.current) % len(i.iterators)
+		iter := i.iterators[iterIndex]
+		if iter.HasNext() {
+			i.current = (iterIndex + 1) % len(i.iterators)
+			return iter.Next()
+		}
+	}
+	return *new(T), false
+}
+
+func (i *multiIterator[T]) ForEachRemaining(f func(item T) bool) {
+	done := false
+	for i.HasNext() && !done {
+		result, _ := i.Next()
+		done = f(result)
+	}
+}
+
+func (i *multiIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
+	return newFilteredIterator[T](i, predicate)
+}
+
+func (i *multiIterator[T]) Peek(peek func(item T)) Iterator[T] {
+	return &Peeker[T]{
+		peek:   peek,
+		parent: i,
+	}
+}
+
+func (i *multiIterator[T]) Collect() []T {
+	result := []T{}
+	i.ForEachRemaining(func(item T) bool {
+		result = append(result, item)
+		return false
+	})
+	return result
+}
+
+func Concat[T any](iterators ...Iterator[T]) Iterator[T] {
+	return &multiIterator[T]{
+		iterators: iterators,
+	}
+}
