@@ -334,8 +334,72 @@ func (i *multiIterator[T]) Collect() []T {
 	return result
 }
 
-func Concat[T any](iterators ...Iterator[T]) Iterator[T] {
+// Union joins multiple iterator to work as iterator-of-iterators.
+//
+// Items are picked one by one from each iterator: first item of first iterator, first item of
+// second iterator..., second item of first iterator, second item of second iterator...
+func Union[T any](iterators ...Iterator[T]) Iterator[T] {
 	return &multiIterator[T]{
 		iterators: iterators,
+	}
+}
+
+type mergedIterator[T any] struct {
+	Iterator[T]
+
+	iterators []Iterator[T]
+}
+
+func (i *mergedIterator[T]) HasNext() bool {
+	for _, is := range i.iterators {
+		if is.HasNext() {
+			return true
+		}
+	}
+	return false
+}
+
+func (i *mergedIterator[T]) Next() (T, bool) {
+	for _, is := range i.iterators {
+		if is.HasNext() {
+			return is.Next()
+		}
+	}
+	return *new(T), false
+}
+
+func (i *mergedIterator[T]) ForEachRemaining(f func(item T) bool) {
+	done := false
+	for i.HasNext() && !done {
+		result, _ := i.Next()
+		done = f(result)
+	}
+}
+
+func (i *mergedIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
+	return newFilteredIterator[T](i, predicate)
+}
+
+func (i *mergedIterator[T]) Peek(peek func(item T)) Iterator[T] {
+	return &Peeker[T]{
+		peek:   peek,
+		parent: i,
+	}
+}
+
+func (i *mergedIterator[T]) Collect() []T {
+	result := []T{}
+	i.ForEachRemaining(func(item T) bool {
+		result = append(result, item)
+		return false
+	})
+	return result
+}
+
+// Concat joins multiple iterators and traverses them sequentially
+// When reaching last element of an iterator, starting the next iterator
+func Concat[T any](i ...Iterator[T]) Iterator[T] {
+	return &mergedIterator[T]{
+		iterators: i,
 	}
 }

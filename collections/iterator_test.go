@@ -312,7 +312,7 @@ func TestFilterIterator(t *testing.T) {
 	})
 }
 
-func TestMultiterator(t *testing.T) {
+func TestUnionIterator(t *testing.T) {
 
 	for _, tc := range []struct {
 		name        string
@@ -324,7 +324,7 @@ func TestMultiterator(t *testing.T) {
 		wantPeek    []any
 	}{
 		{
-			name:        "Concat no iterators",
+			name:        "Union no iterators",
 			iters:       func() []Iterator[any] { return []Iterator[any]{} },
 			wantHasNext: false,
 			wantCollect: []any{},
@@ -356,6 +356,97 @@ func TestMultiterator(t *testing.T) {
 					IterateSlice([]any{1, 3, 5}),
 					IterateSlice([]any{}),
 					IterateSlice([]any{2, 4, 6}),
+				}
+			},
+			wantHasNext: true,
+			wantCollect: []any{1, 2, 3, 4, 5, 6},
+			wantNext:    []any{1, 2, 3, 4, 5, 6},
+		},
+		{
+			name: "Two empty iterators and normal one",
+			iters: func() []Iterator[any] {
+				return []Iterator[any]{
+					IterateSlice([]any{}),
+					IterateSlice([]any{}),
+					IterateSlice([]any{1, 2, 3, 4, 5, 6}),
+				}
+			},
+			wantHasNext: true,
+			wantCollect: []any{1, 2, 3, 4, 5, 6},
+			wantNext:    []any{1, 2, 3, 4, 5, 6},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hasNext := Union(tc.iters()...).HasNext()
+			if hasNext != tc.wantHasNext {
+				t.Errorf("HasNext expected to be %t, but got %t", tc.wantHasNext, hasNext)
+			}
+
+			collect := Union(tc.iters()...).Collect()
+			if !reflect.DeepEqual(collect, tc.wantCollect) {
+				t.Errorf("Collect expected to be %v, but got %v", tc.wantCollect, collect)
+			}
+
+			nextIter := Union(tc.iters()...)
+			nextResult := []any{}
+			for {
+				nextVal, hasNextIter := nextIter.Next()
+				if !hasNextIter {
+					break
+				}
+				nextResult = append(nextResult, nextVal)
+			}
+			if !reflect.DeepEqual(nextResult, tc.wantNext) {
+				t.Errorf("Result of all Nexts expected to be %v, but got %v", tc.wantNext, nextResult)
+			}
+		})
+	}
+}
+
+func TestConcatIterator(t *testing.T) {
+
+	for _, tc := range []struct {
+		name        string
+		iters       func() []Iterator[any]
+		wantHasNext bool
+		wantCollect []any
+		wantNext    []any
+		wantFilter  []any
+		wantPeek    []any
+	}{
+		{
+			name:        "Concat no iterators",
+			iters:       func() []Iterator[any] { return []Iterator[any]{} },
+			wantHasNext: false,
+			wantCollect: []any{},
+			wantNext:    []any{},
+		},
+		{
+			name:        "One simple iterator",
+			iters:       func() []Iterator[any] { return []Iterator[any]{IterateSlice([]any{1, 2, 3, 4})} },
+			wantHasNext: true,
+			wantCollect: []any{1, 2, 3, 4},
+			wantNext:    []any{1, 2, 3, 4},
+		},
+		{
+			name: "Two simple iterators",
+			iters: func() []Iterator[any] {
+				return []Iterator[any]{
+					IterateSlice([]any{1, 2, 3}),
+					IterateSlice([]any{4, 5, 6}),
+				}
+			},
+			wantHasNext: true,
+			wantCollect: []any{1, 2, 3, 4, 5, 6},
+			wantNext:    []any{1, 2, 3, 4, 5, 6},
+		},
+		{
+			name: "Two simple iterators and empty one",
+			iters: func() []Iterator[any] {
+				return []Iterator[any]{
+					IterateSlice([]any{1, 2, 3}),
+					IterateSlice([]any{}),
+					IterateSlice([]any{4, 5, 6}),
 				}
 			},
 			wantHasNext: true,
