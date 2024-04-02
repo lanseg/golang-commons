@@ -32,6 +32,60 @@ type Iterator[T any] interface {
 	Collect() []T
 }
 
+type SliceIterator[T any] struct {
+	Iterator[T]
+	pos int
+
+	slice []T
+}
+
+func (i *SliceIterator[T]) HasNext() bool {
+	return i.pos < len(i.slice)-1
+}
+
+func (i *SliceIterator[T]) Next() (T, bool) {
+	if !i.HasNext() {
+		return *new(T), false
+	}
+	i.pos++
+	return i.slice[i.pos], true
+}
+
+func (i *SliceIterator[T]) ForEachRemaining(f func(item T) bool) {
+	done := false
+	for i.HasNext() && !done {
+		result, _ := i.Next()
+		done = f(result)
+	}
+}
+
+func (i *SliceIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
+	return newFilteredIterator[T](i, predicate)
+}
+
+func (i *SliceIterator[T]) Peek(peek func(item T)) Iterator[T] {
+	return &Peeker[T]{
+		peek:   peek,
+		parent: i,
+	}
+}
+
+func (i *SliceIterator[T]) Collect() []T {
+	result := []T{}
+	i.ForEachRemaining(func(item T) bool {
+		result = append(result, item)
+		return false
+	})
+	return result
+}
+
+func IterateSlice[T any](slice []T) Iterator[T] {
+	return &SliceIterator[T]{
+		pos:   -1,
+		slice: slice,
+	}
+}
+
 type Peeker[T any] struct {
 	Iterator[T]
 
@@ -156,60 +210,6 @@ func newFilteredIterator[T any](parent Iterator[T], predicate func(item T) bool)
 	return &FilterIterator[T]{
 		predicate: predicate,
 		parent:    parent,
-	}
-}
-
-type SliceIterator[T any] struct {
-	Iterator[T]
-	pos int
-
-	slice []T
-}
-
-func (i *SliceIterator[T]) HasNext() bool {
-	return i.pos < len(i.slice)-1
-}
-
-func (i *SliceIterator[T]) Next() (T, bool) {
-	if !i.HasNext() {
-		return *new(T), false
-	}
-	i.pos++
-	return i.slice[i.pos], true
-}
-
-func (i *SliceIterator[T]) ForEachRemaining(f func(item T) bool) {
-	done := false
-	for i.HasNext() && !done {
-		result, _ := i.Next()
-		done = f(result)
-	}
-}
-
-func (i *SliceIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
-	return newFilteredIterator[T](i, predicate)
-}
-
-func (i *SliceIterator[T]) Peek(peek func(item T)) Iterator[T] {
-	return &Peeker[T]{
-		peek:   peek,
-		parent: i,
-	}
-}
-
-func (i *SliceIterator[T]) Collect() []T {
-	result := []T{}
-	i.ForEachRemaining(func(item T) bool {
-		result = append(result, item)
-		return false
-	})
-	return result
-}
-
-func IterateSlice[T any](slice []T) Iterator[T] {
-	return &SliceIterator[T]{
-		pos:   -1,
-		slice: slice,
 	}
 }
 

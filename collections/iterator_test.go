@@ -375,6 +375,21 @@ func TestUnionIterator(t *testing.T) {
 			wantCollect: []any{1, 2, 3, 4, 5, 6},
 			wantNext:    []any{1, 2, 3, 4, 5, 6},
 		},
+		{
+			name: "Multilevel union",
+			iters: func() []Iterator[any] {
+				return []Iterator[any]{
+					Union(
+						IterateSlice([]any{1, 5}),
+						IterateSlice([]any{3, 7, 8, 9}),
+					),
+					IterateSlice([]any{2, 4, 6}),
+				}
+			},
+			wantHasNext: true,
+			wantCollect: []any{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			wantNext:    []any{1, 2, 3, 4, 5, 6, 7, 8, 9},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			hasNext := Union(tc.iters()...).HasNext()
