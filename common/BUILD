@@ -8,6 +8,7 @@ go_library(
         "common.go",
         "config.go",
         "encoding.go",
+        "errors.go",
         "logging.go",
         "strings.go",
         "uuid.go",
@@ -23,7 +24,7 @@ go_test(
     srcs = [
         "common_test.go",
         "config_test.go",
-        "encoding_test.go",        
+        "encoding_test.go",
         "logging_test.go",
         "strings_test.go",
         "uuid_test.go",
