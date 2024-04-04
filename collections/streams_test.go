@@ -7,14 +7,14 @@ import (
 
 func TestSliceStream(t *testing.T) {
 	t.Run("SliceStream.HasNext for an empty slice", func(t *testing.T) {
-		slice := IterateSlice([]string{})
+		slice := SliceStream([]string{})
 		if slice.HasNext() {
 			t.Errorf("HasNext for an empty slice should return false")
 		}
 	})
 
 	t.Run("SliceStream.Next for an empty slice", func(t *testing.T) {
-		slice := IterateSlice([]string{})
+		slice := SliceStream([]string{})
 		_, ok := slice.Next()
 		if ok {
 			t.Errorf("Next for an empty slice should return nil, false")
@@ -22,7 +22,7 @@ func TestSliceStream(t *testing.T) {
 	})
 
 	t.Run("SliceStream ForEachRemainig an empty slice", func(t *testing.T) {
-		slice := IterateSlice([]string{})
+		slice := SliceStream([]string{})
 		callCount := 0
 		slice.ForEachRemaining(func(s string) bool {
 			callCount++
@@ -34,7 +34,7 @@ func TestSliceStream(t *testing.T) {
 	})
 
 	t.Run("SliceStream.HasNext for a slice", func(t *testing.T) {
-		slice := IterateSlice([]string{"1", "2", "3", "4"})
+		slice := SliceStream([]string{"1", "2", "3", "4"})
 		for _, expect := range []bool{true, true, true, true, false} {
 			hasNext := slice.HasNext()
 			if hasNext != expect {
@@ -46,7 +46,7 @@ func TestSliceStream(t *testing.T) {
 	})
 
 	t.Run("SliceStream.Next for a slice", func(t *testing.T) {
-		slice := IterateSlice([]string{"1", "2"})
+		slice := SliceStream([]string{"1", "2"})
 		aValue, aOk := slice.Next()
 		bValue, bOk := slice.Next()
 		_, cOk := slice.Next()
@@ -61,7 +61,7 @@ func TestSliceStream(t *testing.T) {
 
 	t.Run("SliceStream ForEachRemainig a slice", func(t *testing.T) {
 		src := []string{"1", "2", "3", "4"}
-		slice := IterateSlice(src)
+		slice := SliceStream(src)
 		resultA := []string{}
 		resultB := []string{}
 
@@ -81,7 +81,7 @@ func TestSliceStream(t *testing.T) {
 	t.Run("SliceStream.Peek peek invoked on next", func(t *testing.T) {
 		src := []string{"1", "2", "3", "4"}
 		result := []string{}
-		iter := IterateSlice(src).Peek(func(i string) {
+		iter := SliceStream(src).Peek(func(i string) {
 			result = append(result, i)
 		})
 		iter.Next()
@@ -95,7 +95,7 @@ func TestSliceStream(t *testing.T) {
 	t.Run("SliceStream.Peek peek invoked on forEachRemaining", func(t *testing.T) {
 		src := []string{"1", "2", "3", "4"}
 		result := []string{}
-		iter := IterateSlice(src).Peek(func(i string) {
+		iter := SliceStream(src).Peek(func(i string) {
 			result = append(result, i)
 		})
 		iter.ForEachRemaining(func(i string) bool {
@@ -109,7 +109,7 @@ func TestSliceStream(t *testing.T) {
 	t.Run("SliceStream.Peek peek invoked on Collect", func(t *testing.T) {
 		src := []string{"1", "2", "3", "4"}
 		result := []string{}
-		iter := IterateSlice(src).Peek(func(i string) {
+		iter := SliceStream(src).Peek(func(i string) {
 			result = append(result, i)
 		})
 		iter.Collect()
@@ -151,7 +151,7 @@ func TestSliceStream(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result := IterateSlice(tc.src).Filter(tc.filter).Collect()
+			result := SliceStream(tc.src).Filter(tc.filter).Collect()
 			if !reflect.DeepEqual(tc.want, result) {
 				t.Errorf("Result after filtering (%v) expected to be (%v), but got (%v)",
 					tc.src, tc.want, result)
@@ -186,7 +186,7 @@ func TestTreeStream(t *testing.T) {
 	}
 
 	t.Run("Iterate normal tree, DepthFirst", func(t *testing.T) {
-		iterator := IterateTree(aTree, DepthFirst, getChildren)
+		iterator := StreamIterator(IterateTree[*someTree](aTree, DepthFirst, getChildren))
 
 		result := []string{}
 		iterator.ForEachRemaining(func(t *someTree) bool {
@@ -201,7 +201,7 @@ func TestTreeStream(t *testing.T) {
 	})
 
 	t.Run("Iterate normal tree, forEachRemaining", func(t *testing.T) {
-		iterator := IterateTree(aTree, BreadthFirst, getChildren)
+		iterator := StreamIterator(IterateTree[*someTree](aTree, BreadthFirst, getChildren))
 
 		result := []string{}
 		iterator.ForEachRemaining(func(t *someTree) bool {
@@ -215,7 +215,7 @@ func TestTreeStream(t *testing.T) {
 	})
 
 	t.Run("Iterate normal tree, for loop", func(t *testing.T) {
-		iterator := IterateTree(aTree, BreadthFirst, getChildren)
+		iterator := StreamIterator(IterateTree[*someTree](aTree, BreadthFirst, getChildren))
 
 		result := []string{}
 		for iterator.HasNext() {
@@ -230,7 +230,7 @@ func TestTreeStream(t *testing.T) {
 
 	t.Run("Iterate normal tree, with picking", func(t *testing.T) {
 		result := []string{}
-		IterateTree(aTree, BreadthFirst, getChildren).Peek(func(t *someTree) {
+		StreamIterator(IterateTree[*someTree](aTree, BreadthFirst, getChildren)).Peek(func(t *someTree) {
 			result = append(result, t.value)
 		}).Collect()
 		if !reflect.DeepEqual(result, want) {
@@ -273,7 +273,7 @@ func TestTreeStream(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result := IterateTree(tc.root, BreadthFirst, getChildren).Filter(tc.filter).Collect()
+			result := StreamIterator(IterateTree(tc.root, BreadthFirst, getChildren)).Filter(tc.filter).Collect()
 			if !reflect.DeepEqual(result, tc.want) {
 				t.Errorf("Filtering of %v expected to return %v, but got %v",
 					tc.root, tc.want, result)
@@ -292,7 +292,7 @@ func TestFilterIterator(t *testing.T) {
 		want := []int{0, 6, 12}
 		peeked := []int{}
 		wantPeek := []int{0, 2, 4, 6, 8, 10, 12}
-		IterateSlice(src).Filter(func(i int) bool {
+		SliceStream(src).Filter(func(i int) bool {
 			return i%2 == 0
 		}).Peek(func(i int) {
 			peeked = append(peeked, i)
@@ -332,7 +332,7 @@ func TestUnionIterator(t *testing.T) {
 		},
 		{
 			name:        "One simple iterator",
-			iters:       func() []Stream[any] { return []Stream[any]{IterateSlice([]any{1, 2, 3, 4})} },
+			iters:       func() []Stream[any] { return []Stream[any]{SliceStream([]any{1, 2, 3, 4})} },
 			wantHasNext: true,
 			wantCollect: []any{1, 2, 3, 4},
 			wantNext:    []any{1, 2, 3, 4},
@@ -341,8 +341,8 @@ func TestUnionIterator(t *testing.T) {
 			name: "Two simple iterators",
 			iters: func() []Stream[any] {
 				return []Stream[any]{
-					IterateSlice([]any{1, 3, 5}),
-					IterateSlice([]any{2, 4, 6}),
+					SliceStream([]any{1, 3, 5}),
+					SliceStream([]any{2, 4, 6}),
 				}
 			},
 			wantHasNext: true,
@@ -353,9 +353,9 @@ func TestUnionIterator(t *testing.T) {
 			name: "Two simple iterators and empty one",
 			iters: func() []Stream[any] {
 				return []Stream[any]{
-					IterateSlice([]any{1, 3, 5}),
-					IterateSlice([]any{}),
-					IterateSlice([]any{2, 4, 6}),
+					SliceStream([]any{1, 3, 5}),
+					SliceStream([]any{}),
+					SliceStream([]any{2, 4, 6}),
 				}
 			},
 			wantHasNext: true,
@@ -366,9 +366,9 @@ func TestUnionIterator(t *testing.T) {
 			name: "Two empty iterators and normal one",
 			iters: func() []Stream[any] {
 				return []Stream[any]{
-					IterateSlice([]any{}),
-					IterateSlice([]any{}),
-					IterateSlice([]any{1, 2, 3, 4, 5, 6}),
+					SliceStream([]any{}),
+					SliceStream([]any{}),
+					SliceStream([]any{1, 2, 3, 4, 5, 6}),
 				}
 			},
 			wantHasNext: true,
@@ -380,10 +380,10 @@ func TestUnionIterator(t *testing.T) {
 			iters: func() []Stream[any] {
 				return []Stream[any]{
 					Union(
-						IterateSlice([]any{1, 5}),
-						IterateSlice([]any{3, 7, 8, 9}),
+						SliceStream([]any{1, 5}),
+						SliceStream([]any{3, 7, 8, 9}),
 					),
-					IterateSlice([]any{2, 4, 6}),
+					SliceStream([]any{2, 4, 6}),
 				}
 			},
 			wantHasNext: true,
@@ -438,7 +438,7 @@ func TestConcatIterator(t *testing.T) {
 		},
 		{
 			name:        "One simple iterator",
-			iters:       func() []Stream[any] { return []Stream[any]{IterateSlice([]any{1, 2, 3, 4})} },
+			iters:       func() []Stream[any] { return []Stream[any]{SliceStream([]any{1, 2, 3, 4})} },
 			wantHasNext: true,
 			wantCollect: []any{1, 2, 3, 4},
 			wantNext:    []any{1, 2, 3, 4},
@@ -447,8 +447,8 @@ func TestConcatIterator(t *testing.T) {
 			name: "Two simple iterators",
 			iters: func() []Stream[any] {
 				return []Stream[any]{
-					IterateSlice([]any{1, 2, 3}),
-					IterateSlice([]any{4, 5, 6}),
+					SliceStream([]any{1, 2, 3}),
+					SliceStream([]any{4, 5, 6}),
 				}
 			},
 			wantHasNext: true,
@@ -459,9 +459,9 @@ func TestConcatIterator(t *testing.T) {
 			name: "Two simple iterators and empty one",
 			iters: func() []Stream[any] {
 				return []Stream[any]{
-					IterateSlice([]any{1, 2, 3}),
-					IterateSlice([]any{}),
-					IterateSlice([]any{4, 5, 6}),
+					SliceStream([]any{1, 2, 3}),
+					SliceStream([]any{}),
+					SliceStream([]any{4, 5, 6}),
 				}
 			},
 			wantHasNext: true,
@@ -472,9 +472,9 @@ func TestConcatIterator(t *testing.T) {
 			name: "Two empty iterators and normal one",
 			iters: func() []Stream[any] {
 				return []Stream[any]{
-					IterateSlice([]any{}),
-					IterateSlice([]any{}),
-					IterateSlice([]any{1, 2, 3, 4, 5, 6}),
+					SliceStream([]any{}),
+					SliceStream([]any{}),
+					SliceStream([]any{1, 2, 3, 4, 5, 6}),
 				}
 			},
 			wantHasNext: true,

@@ -2,11 +2,6 @@ package collections
 
 type TraverseOrder int
 
-const (
-	DepthFirst   = TraverseOrder(1)
-	BreadthFirst = TraverseOrder(2)
-)
-
 type Stream[T any] interface {
 	Iterator[T]
 
@@ -25,26 +20,30 @@ type Stream[T any] interface {
 	Collect() []T
 }
 
-type sliceStream[T any] struct {
+func StreamIterator[T any](iter Iterator[T]) Stream[T] {
+	return &IteratorStream[T]{iterator: iter}
+}
+
+func SliceStream[T any](slice []T) Stream[T] {
+	return StreamIterator[T](IterateSlice(slice))
+}
+
+// Stream definitions
+type IteratorStream[T any] struct {
 	Stream[T]
-	pos int
 
-	slice []T
+	iterator Iterator[T]
 }
 
-func (i *sliceStream[T]) HasNext() bool {
-	return i.pos < len(i.slice)-1
+func (i *IteratorStream[T]) HasNext() bool {
+	return i.iterator.HasNext()
 }
 
-func (i *sliceStream[T]) Next() (T, bool) {
-	if !i.HasNext() {
-		return *new(T), false
-	}
-	i.pos++
-	return i.slice[i.pos], true
+func (i *IteratorStream[T]) Next() (T, bool) {
+	return i.iterator.Next()
 }
 
-func (i *sliceStream[T]) ForEachRemaining(f func(item T) bool) {
+func (i *IteratorStream[T]) ForEachRemaining(f func(item T) bool) {
 	done := false
 	for i.HasNext() && !done {
 		result, _ := i.Next()
@@ -52,31 +51,24 @@ func (i *sliceStream[T]) ForEachRemaining(f func(item T) bool) {
 	}
 }
 
-func (i *sliceStream[T]) Filter(predicate func(item T) bool) Stream[T] {
+func (i *IteratorStream[T]) Filter(predicate func(item T) bool) Stream[T] {
 	return newFilteredStream[T](i, predicate)
 }
 
-func (i *sliceStream[T]) Peek(peek func(item T)) Stream[T] {
+func (i *IteratorStream[T]) Peek(peek func(item T)) Stream[T] {
 	return &Peeker[T]{
 		peek:   peek,
 		parent: i,
 	}
 }
 
-func (i *sliceStream[T]) Collect() []T {
+func (i *IteratorStream[T]) Collect() []T {
 	result := []T{}
 	i.ForEachRemaining(func(item T) bool {
 		result = append(result, item)
 		return false
 	})
 	return result
-}
-
-func IterateSlice[T any](slice []T) Stream[T] {
-	return &sliceStream[T]{
-		pos:   -1,
-		slice: slice,
-	}
 }
 
 type Peeker[T any] struct {
@@ -126,7 +118,7 @@ func (i Peeker[T]) Collect() []T {
 }
 
 type filterStream[T any] struct {
-	Iterator[T]
+	Stream[T]
 
 	ready bool
 	value T
@@ -203,71 +195,6 @@ func newFilteredStream[T any](parent Stream[T], predicate func(item T) bool) Str
 	return &filterStream[T]{
 		predicate: predicate,
 		parent:    parent,
-	}
-}
-
-// treeStream walks over a tree structure in a BFS way.
-type treeStream[T any] struct {
-	Stream[T]
-
-	order       TraverseOrder
-	toVisit     []T
-	getChildren func(node T) []T
-}
-
-func (i *treeStream[T]) HasNext() bool {
-	return len(i.toVisit) > 0
-}
-
-func (i *treeStream[T]) Next() (T, bool) {
-	if !i.HasNext() {
-		return *new(T), false
-	}
-	next, remain := i.toVisit[0], i.toVisit[1:]
-	switch i.order {
-	case BreadthFirst:
-		i.toVisit = append(remain, i.getChildren(next)...)
-	case DepthFirst:
-		i.toVisit = append(i.getChildren(next), remain...)
-	}
-	return next, true
-}
-
-func (i *treeStream[T]) ForEachRemaining(f func(item T) bool) {
-	done := false
-	for i.HasNext() && !done {
-		result, _ := i.Next()
-		done = f(result)
-	}
-}
-
-func (i *treeStream[T]) Filter(predicate func(item T) bool) Stream[T] {
-	return newFilteredStream[T](i, predicate)
-}
-
-func (i *treeStream[T]) Peek(peek func(item T)) Stream[T] {
-	return &Peeker[T]{
-		peek:   peek,
-		parent: i,
-	}
-}
-
-func (i *treeStream[T]) Collect() []T {
-	result := []T{}
-	i.ForEachRemaining(func(item T) bool {
-		result = append(result, item)
-		return false
-	})
-	return result
-}
-
-// IterateTree creates a treeStream for a root node "root" and a method to get node children.
-// Uses BFS by default
-func IterateTree[T any](root T, order TraverseOrder, getChildren func(T) []T) *treeStream[T] {
-	return &treeStream[T]{
-		order:       order,
-		toVisit:     []T{root},
-		getChildren: getChildren,
 	}
 }
 

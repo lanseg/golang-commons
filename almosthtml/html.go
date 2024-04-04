@@ -5,18 +5,18 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/lanseg/golang-commons/collections"
-	"github.com/lanseg/golang-commons/optional"
+	col "github.com/lanseg/golang-commons/collections"
+	opt "github.com/lanseg/golang-commons/optional"
 )
 
 var (
-	selfClosingTags = collections.NewSet([]string{
+	selfClosingTags = col.NewSet([]string{
 		"area", "base", "br", "col", "embed",
 		"hr", "img", "input", "link", "meta",
 		"param", "source", "track", "wbr",
 		"!DOCTYPE", "#text",
 	})
-	emptyParam = &optional.Nothing[string]{}
+	emptyParam = &opt.Nothing[string]{}
 )
 
 // Node is something like a html element: tag or text data.
@@ -27,13 +27,13 @@ type Node struct {
 	Children []*Node
 }
 
-func (n *Node) iterateChildren() collections.Stream[*Node] {
-	return collections.IterateTree(n, collections.DepthFirst, func(node *Node) []*Node {
+func (n *Node) iterateChildren() col.Stream[*Node] {
+	return col.StreamIterator(col.IterateTree(n, col.DepthFirst, func(node *Node) []*Node {
 		if node.Children == nil {
 			return []*Node{}
 		}
 		return node.Children
-	})
+	}))
 }
 
 // InnerHTML generates a html representation of the node and it's contents.
@@ -53,22 +53,22 @@ func (n *Node) GetElementsByTagAndClass(tag string, classes ...string) []*Node {
 		if tag != node.Name || (!ok && len(classes) > 0) {
 			return false
 		}
-		return collections.NewSet(strings.Split(data, " ")).ContainsAll(classes)
+		return col.NewSet(strings.Split(data, " ")).ContainsAll(classes)
 	}).Collect()
 }
 
 // GetElementsByTags finds all elements with given tag names.
 func (n *Node) GetElementsByTags(tags ...string) []*Node {
-	tagSet := collections.NewSet(tags)
+	tagSet := col.NewSet(tags)
 	return n.iterateChildren().Filter(func(node *Node) bool {
 		return tagSet.Contains(node.Name)
 	}).Collect()
 }
 
 // GetAttribute returns attribute value or Nothing optional if there is no such attribute.
-func (n *Node) GetAttribute(attr string) optional.Optional[string] {
+func (n *Node) GetAttribute(attr string) opt.Optional[string] {
 	if value, ok := n.Params[attr]; ok {
-		return optional.Of(value)
+		return opt.Of(value)
 	}
 	return emptyParam
 }
