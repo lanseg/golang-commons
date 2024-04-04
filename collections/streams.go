@@ -7,17 +7,6 @@ const (
 	BreadthFirst = TraverseOrder(2)
 )
 
-// Iterator provides an iterator for a sequential data that cannot be put into a slice
-// like custom list implementations or sequences with no known length.
-type Iterator[T any] interface {
-	// HasNext return true if there is still more data to proceed
-	HasNext() bool
-
-	// Next returns current value, true if the value exists and advances by one step.
-	// Returns _, false if there was no value.
-	Next() (T, bool)
-}
-
 type Stream[T any] interface {
 	Iterator[T]
 
