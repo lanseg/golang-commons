@@ -77,3 +77,29 @@ func IterateTree[T any](root T, order TraverseOrder, getChildren func(T) []T) It
 		getChildren: getChildren,
 	}
 }
+
+type infiniteSliceIterator[T any] struct {
+	Iterator[T]
+
+	parent *sliceIterator[T]
+}
+
+func (i *infiniteSliceIterator[T]) HasNext() bool {
+	return true
+}
+
+func (i *infiniteSliceIterator[T]) Next() (T, bool) {
+	if !i.parent.HasNext() {
+		i.parent.cursor = 0
+	}
+	return i.parent.Next()
+}
+
+func IterateSliceForever[T any](items []T) Iterator[T] {
+	return &infiniteSliceIterator[T]{
+		parent: &sliceIterator[T]{
+			cursor: -1,
+			items:  items,
+		},
+	}
+}
