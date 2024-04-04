@@ -16,6 +16,10 @@ type Iterator[T any] interface {
 	// Next returns current value, true if the value exists and advances by one step.
 	// Returns _, false if there was no value.
 	Next() (T, bool)
+}
+
+type Stream[T any] interface {
+	Iterator[T]
 
 	// ForEachRemaining invokes f for each element until the end of the underlying
 	// sequence. If f returns true than iteration is done and we do not need any more
@@ -23,27 +27,27 @@ type Iterator[T any] interface {
 	ForEachRemaining(f func(item T) bool)
 
 	// Filter creates an iterator which provides only items that satisfy given predicate
-	Filter(predicate func(item T) bool) Iterator[T]
+	Filter(predicate func(item T) bool) Stream[T]
 
 	// Peek returns an iterator that additionally performs given action on each element
-	Peek(func(item T)) Iterator[T]
+	Peek(func(item T)) Stream[T]
 
 	// Collect fetches all elements from an iterator and adds them to a slice
 	Collect() []T
 }
 
-type SliceIterator[T any] struct {
-	Iterator[T]
+type sliceStream[T any] struct {
+	Stream[T]
 	pos int
 
 	slice []T
 }
 
-func (i *SliceIterator[T]) HasNext() bool {
+func (i *sliceStream[T]) HasNext() bool {
 	return i.pos < len(i.slice)-1
 }
 
-func (i *SliceIterator[T]) Next() (T, bool) {
+func (i *sliceStream[T]) Next() (T, bool) {
 	if !i.HasNext() {
 		return *new(T), false
 	}
@@ -51,7 +55,7 @@ func (i *SliceIterator[T]) Next() (T, bool) {
 	return i.slice[i.pos], true
 }
 
-func (i *SliceIterator[T]) ForEachRemaining(f func(item T) bool) {
+func (i *sliceStream[T]) ForEachRemaining(f func(item T) bool) {
 	done := false
 	for i.HasNext() && !done {
 		result, _ := i.Next()
@@ -59,18 +63,18 @@ func (i *SliceIterator[T]) ForEachRemaining(f func(item T) bool) {
 	}
 }
 
-func (i *SliceIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
-	return newFilteredIterator[T](i, predicate)
+func (i *sliceStream[T]) Filter(predicate func(item T) bool) Stream[T] {
+	return newFilteredStream[T](i, predicate)
 }
 
-func (i *SliceIterator[T]) Peek(peek func(item T)) Iterator[T] {
+func (i *sliceStream[T]) Peek(peek func(item T)) Stream[T] {
 	return &Peeker[T]{
 		peek:   peek,
 		parent: i,
 	}
 }
 
-func (i *SliceIterator[T]) Collect() []T {
+func (i *sliceStream[T]) Collect() []T {
 	result := []T{}
 	i.ForEachRemaining(func(item T) bool {
 		result = append(result, item)
@@ -79,18 +83,18 @@ func (i *SliceIterator[T]) Collect() []T {
 	return result
 }
 
-func IterateSlice[T any](slice []T) Iterator[T] {
-	return &SliceIterator[T]{
+func IterateSlice[T any](slice []T) Stream[T] {
+	return &sliceStream[T]{
 		pos:   -1,
 		slice: slice,
 	}
 }
 
 type Peeker[T any] struct {
-	Iterator[T]
+	Stream[T]
 
 	peek   func(item T)
-	parent Iterator[T]
+	parent Stream[T]
 }
 
 func (i Peeker[T]) HasNext() bool {
@@ -112,11 +116,11 @@ func (i Peeker[T]) ForEachRemaining(f func(item T) bool) {
 	})
 }
 
-func (i Peeker[T]) Filter(predicate func(item T) bool) Iterator[T] {
-	return newFilteredIterator[T](i, predicate)
+func (i Peeker[T]) Filter(predicate func(item T) bool) Stream[T] {
+	return newFilteredStream[T](i, predicate)
 }
 
-func (i Peeker[T]) Peek(peek func(item T)) Iterator[T] {
+func (i Peeker[T]) Peek(peek func(item T)) Stream[T] {
 	return &Peeker[T]{
 		peek:   peek,
 		parent: i,
@@ -132,17 +136,17 @@ func (i Peeker[T]) Collect() []T {
 	return result
 }
 
-type FilterIterator[T any] struct {
+type filterStream[T any] struct {
 	Iterator[T]
 
 	ready bool
 	value T
 
 	predicate func(item T) bool
-	parent    Iterator[T]
+	parent    Stream[T]
 }
 
-func (i *FilterIterator[T]) takeUntilMatch() (T, bool) {
+func (i *filterStream[T]) takeUntilMatch() (T, bool) {
 	done := false
 	for !done {
 		value, ok := i.parent.Next()
@@ -154,7 +158,7 @@ func (i *FilterIterator[T]) takeUntilMatch() (T, bool) {
 	return *new(T), false
 }
 
-func (i *FilterIterator[T]) HasNext() bool {
+func (i *filterStream[T]) HasNext() bool {
 	if i.ready {
 		return true
 	}
@@ -170,7 +174,7 @@ func (i *FilterIterator[T]) HasNext() bool {
 	return true
 }
 
-func (i *FilterIterator[T]) Next() (T, bool) {
+func (i *filterStream[T]) Next() (T, bool) {
 	if i.ready {
 		i.ready = false
 		return i.value, true
@@ -178,7 +182,7 @@ func (i *FilterIterator[T]) Next() (T, bool) {
 	return i.takeUntilMatch()
 }
 
-func (i *FilterIterator[T]) ForEachRemaining(f func(item T) bool) {
+func (i *filterStream[T]) ForEachRemaining(f func(item T) bool) {
 	done := false
 	for !done {
 		value, ok := i.Next()
@@ -186,18 +190,18 @@ func (i *FilterIterator[T]) ForEachRemaining(f func(item T) bool) {
 	}
 }
 
-func (i *FilterIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
-	return newFilteredIterator[T](i, predicate)
+func (i *filterStream[T]) Filter(predicate func(item T) bool) Stream[T] {
+	return newFilteredStream[T](i, predicate)
 }
 
-func (i *FilterIterator[T]) Peek(peek func(item T)) Iterator[T] {
+func (i *filterStream[T]) Peek(peek func(item T)) Stream[T] {
 	return &Peeker[T]{
 		peek:   peek,
 		parent: i,
 	}
 }
 
-func (i *FilterIterator[T]) Collect() []T {
+func (i *filterStream[T]) Collect() []T {
 	result := []T{}
 	i.ForEachRemaining(func(item T) bool {
 		result = append(result, item)
@@ -206,27 +210,27 @@ func (i *FilterIterator[T]) Collect() []T {
 	return result
 }
 
-func newFilteredIterator[T any](parent Iterator[T], predicate func(item T) bool) Iterator[T] {
-	return &FilterIterator[T]{
+func newFilteredStream[T any](parent Stream[T], predicate func(item T) bool) Stream[T] {
+	return &filterStream[T]{
 		predicate: predicate,
 		parent:    parent,
 	}
 }
 
-// TreeIterator walks over a tree structure in a BFS way.
-type TreeIterator[T any] struct {
-	Iterator[T]
+// treeStream walks over a tree structure in a BFS way.
+type treeStream[T any] struct {
+	Stream[T]
 
 	order       TraverseOrder
 	toVisit     []T
 	getChildren func(node T) []T
 }
 
-func (i *TreeIterator[T]) HasNext() bool {
+func (i *treeStream[T]) HasNext() bool {
 	return len(i.toVisit) > 0
 }
 
-func (i *TreeIterator[T]) Next() (T, bool) {
+func (i *treeStream[T]) Next() (T, bool) {
 	if !i.HasNext() {
 		return *new(T), false
 	}
@@ -240,7 +244,7 @@ func (i *TreeIterator[T]) Next() (T, bool) {
 	return next, true
 }
 
-func (i *TreeIterator[T]) ForEachRemaining(f func(item T) bool) {
+func (i *treeStream[T]) ForEachRemaining(f func(item T) bool) {
 	done := false
 	for i.HasNext() && !done {
 		result, _ := i.Next()
@@ -248,18 +252,18 @@ func (i *TreeIterator[T]) ForEachRemaining(f func(item T) bool) {
 	}
 }
 
-func (i *TreeIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
-	return newFilteredIterator[T](i, predicate)
+func (i *treeStream[T]) Filter(predicate func(item T) bool) Stream[T] {
+	return newFilteredStream[T](i, predicate)
 }
 
-func (i *TreeIterator[T]) Peek(peek func(item T)) Iterator[T] {
+func (i *treeStream[T]) Peek(peek func(item T)) Stream[T] {
 	return &Peeker[T]{
 		peek:   peek,
 		parent: i,
 	}
 }
 
-func (i *TreeIterator[T]) Collect() []T {
+func (i *treeStream[T]) Collect() []T {
 	result := []T{}
 	i.ForEachRemaining(func(item T) bool {
 		result = append(result, item)
@@ -268,24 +272,24 @@ func (i *TreeIterator[T]) Collect() []T {
 	return result
 }
 
-// IterateTree creates a TreeIterator for a root node "root" and a method to get node children.
+// IterateTree creates a treeStream for a root node "root" and a method to get node children.
 // Uses BFS by default
-func IterateTree[T any](root T, order TraverseOrder, getChildren func(T) []T) *TreeIterator[T] {
-	return &TreeIterator[T]{
+func IterateTree[T any](root T, order TraverseOrder, getChildren func(T) []T) *treeStream[T] {
+	return &treeStream[T]{
 		order:       order,
 		toVisit:     []T{root},
 		getChildren: getChildren,
 	}
 }
 
-type multiIterator[T any] struct {
-	Iterator[T]
+type multiStream[T any] struct {
+	Stream[T]
 
 	current   int
-	iterators []Iterator[T]
+	iterators []Stream[T]
 }
 
-func (i *multiIterator[T]) HasNext() bool {
+func (i *multiStream[T]) HasNext() bool {
 	for _, is := range i.iterators {
 		if is.HasNext() {
 			return true
@@ -294,7 +298,7 @@ func (i *multiIterator[T]) HasNext() bool {
 	return false
 }
 
-func (i *multiIterator[T]) Next() (T, bool) {
+func (i *multiStream[T]) Next() (T, bool) {
 	for cur := 0; cur < len(i.iterators); cur++ {
 		iterIndex := (cur + i.current) % len(i.iterators)
 		iter := i.iterators[iterIndex]
@@ -306,7 +310,7 @@ func (i *multiIterator[T]) Next() (T, bool) {
 	return *new(T), false
 }
 
-func (i *multiIterator[T]) ForEachRemaining(f func(item T) bool) {
+func (i *multiStream[T]) ForEachRemaining(f func(item T) bool) {
 	done := false
 	for i.HasNext() && !done {
 		result, _ := i.Next()
@@ -314,18 +318,18 @@ func (i *multiIterator[T]) ForEachRemaining(f func(item T) bool) {
 	}
 }
 
-func (i *multiIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
-	return newFilteredIterator[T](i, predicate)
+func (i *multiStream[T]) Filter(predicate func(item T) bool) Stream[T] {
+	return newFilteredStream[T](i, predicate)
 }
 
-func (i *multiIterator[T]) Peek(peek func(item T)) Iterator[T] {
+func (i *multiStream[T]) Peek(peek func(item T)) Stream[T] {
 	return &Peeker[T]{
 		peek:   peek,
 		parent: i,
 	}
 }
 
-func (i *multiIterator[T]) Collect() []T {
+func (i *multiStream[T]) Collect() []T {
 	result := []T{}
 	i.ForEachRemaining(func(item T) bool {
 		result = append(result, item)
@@ -334,23 +338,23 @@ func (i *multiIterator[T]) Collect() []T {
 	return result
 }
 
-// Union joins multiple iterator to work as iterator-of-iterators.
+// Union joins multiple iterator to work as stream-of-streams.
 //
 // Items are picked one by one from each iterator: first item of first iterator, first item of
 // second iterator..., second item of first iterator, second item of second iterator...
-func Union[T any](iterators ...Iterator[T]) Iterator[T] {
-	return &multiIterator[T]{
-		iterators: iterators,
+func Union[T any](streams ...Stream[T]) Stream[T] {
+	return &multiStream[T]{
+		iterators: streams,
 	}
 }
 
-type mergedIterator[T any] struct {
-	Iterator[T]
+type mergedStream[T any] struct {
+	Stream[T]
 
-	iterators []Iterator[T]
+	iterators []Stream[T]
 }
 
-func (i *mergedIterator[T]) HasNext() bool {
+func (i *mergedStream[T]) HasNext() bool {
 	for _, is := range i.iterators {
 		if is.HasNext() {
 			return true
@@ -359,7 +363,7 @@ func (i *mergedIterator[T]) HasNext() bool {
 	return false
 }
 
-func (i *mergedIterator[T]) Next() (T, bool) {
+func (i *mergedStream[T]) Next() (T, bool) {
 	for _, is := range i.iterators {
 		if is.HasNext() {
 			return is.Next()
@@ -368,7 +372,7 @@ func (i *mergedIterator[T]) Next() (T, bool) {
 	return *new(T), false
 }
 
-func (i *mergedIterator[T]) ForEachRemaining(f func(item T) bool) {
+func (i *mergedStream[T]) ForEachRemaining(f func(item T) bool) {
 	done := false
 	for i.HasNext() && !done {
 		result, _ := i.Next()
@@ -376,18 +380,18 @@ func (i *mergedIterator[T]) ForEachRemaining(f func(item T) bool) {
 	}
 }
 
-func (i *mergedIterator[T]) Filter(predicate func(item T) bool) Iterator[T] {
-	return newFilteredIterator[T](i, predicate)
+func (i *mergedStream[T]) Filter(predicate func(item T) bool) Stream[T] {
+	return newFilteredStream[T](i, predicate)
 }
 
-func (i *mergedIterator[T]) Peek(peek func(item T)) Iterator[T] {
+func (i *mergedStream[T]) Peek(peek func(item T)) Stream[T] {
 	return &Peeker[T]{
 		peek:   peek,
 		parent: i,
 	}
 }
 
-func (i *mergedIterator[T]) Collect() []T {
+func (i *mergedStream[T]) Collect() []T {
 	result := []T{}
 	i.ForEachRemaining(func(item T) bool {
 		result = append(result, item)
@@ -398,8 +402,8 @@ func (i *mergedIterator[T]) Collect() []T {
 
 // Concat joins multiple iterators and traverses them sequentially
 // When reaching last element of an iterator, starting the next iterator
-func Concat[T any](i ...Iterator[T]) Iterator[T] {
-	return &mergedIterator[T]{
+func Concat[T any](i ...Stream[T]) Stream[T] {
+	return &mergedStream[T]{
 		iterators: i,
 	}
 }

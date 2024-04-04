@@ -5,15 +5,15 @@ import (
 	"testing"
 )
 
-func TestSliceIterator(t *testing.T) {
-	t.Run("SliceIterator.HasNext for an empty slice", func(t *testing.T) {
+func TestSliceStream(t *testing.T) {
+	t.Run("SliceStream.HasNext for an empty slice", func(t *testing.T) {
 		slice := IterateSlice([]string{})
 		if slice.HasNext() {
 			t.Errorf("HasNext for an empty slice should return false")
 		}
 	})
 
-	t.Run("SliceIterator.Next for an empty slice", func(t *testing.T) {
+	t.Run("SliceStream.Next for an empty slice", func(t *testing.T) {
 		slice := IterateSlice([]string{})
 		_, ok := slice.Next()
 		if ok {
@@ -21,7 +21,7 @@ func TestSliceIterator(t *testing.T) {
 		}
 	})
 
-	t.Run("SliceIterator ForEachRemainig an empty slice", func(t *testing.T) {
+	t.Run("SliceStream ForEachRemainig an empty slice", func(t *testing.T) {
 		slice := IterateSlice([]string{})
 		callCount := 0
 		slice.ForEachRemaining(func(s string) bool {
@@ -33,7 +33,7 @@ func TestSliceIterator(t *testing.T) {
 		}
 	})
 
-	t.Run("SliceIterator.HasNext for a slice", func(t *testing.T) {
+	t.Run("SliceStream.HasNext for a slice", func(t *testing.T) {
 		slice := IterateSlice([]string{"1", "2", "3", "4"})
 		for _, expect := range []bool{true, true, true, true, false} {
 			hasNext := slice.HasNext()
@@ -45,7 +45,7 @@ func TestSliceIterator(t *testing.T) {
 		}
 	})
 
-	t.Run("SliceIterator.Next for a slice", func(t *testing.T) {
+	t.Run("SliceStream.Next for a slice", func(t *testing.T) {
 		slice := IterateSlice([]string{"1", "2"})
 		aValue, aOk := slice.Next()
 		bValue, bOk := slice.Next()
@@ -59,7 +59,7 @@ func TestSliceIterator(t *testing.T) {
 
 	})
 
-	t.Run("SliceIterator ForEachRemainig a slice", func(t *testing.T) {
+	t.Run("SliceStream ForEachRemainig a slice", func(t *testing.T) {
 		src := []string{"1", "2", "3", "4"}
 		slice := IterateSlice(src)
 		resultA := []string{}
@@ -78,7 +78,7 @@ func TestSliceIterator(t *testing.T) {
 		}
 	})
 
-	t.Run("SliceIterator.Peek peek invoked on next", func(t *testing.T) {
+	t.Run("SliceStream.Peek peek invoked on next", func(t *testing.T) {
 		src := []string{"1", "2", "3", "4"}
 		result := []string{}
 		iter := IterateSlice(src).Peek(func(i string) {
@@ -92,7 +92,7 @@ func TestSliceIterator(t *testing.T) {
 		}
 	})
 
-	t.Run("SliceIterator.Peek peek invoked on forEachRemaining", func(t *testing.T) {
+	t.Run("SliceStream.Peek peek invoked on forEachRemaining", func(t *testing.T) {
 		src := []string{"1", "2", "3", "4"}
 		result := []string{}
 		iter := IterateSlice(src).Peek(func(i string) {
@@ -106,7 +106,7 @@ func TestSliceIterator(t *testing.T) {
 		}
 	})
 
-	t.Run("SliceIterator.Peek peek invoked on Collect", func(t *testing.T) {
+	t.Run("SliceStream.Peek peek invoked on Collect", func(t *testing.T) {
 		src := []string{"1", "2", "3", "4"}
 		result := []string{}
 		iter := IterateSlice(src).Peek(func(i string) {
@@ -165,7 +165,7 @@ type someTree struct {
 	children []*someTree
 }
 
-func TestTreeIterator(t *testing.T) {
+func TestTreeStream(t *testing.T) {
 
 	aTree := &someTree{
 		"root",
@@ -316,7 +316,7 @@ func TestUnionIterator(t *testing.T) {
 
 	for _, tc := range []struct {
 		name        string
-		iters       func() []Iterator[any]
+		iters       func() []Stream[any]
 		wantHasNext bool
 		wantCollect []any
 		wantNext    []any
@@ -325,22 +325,22 @@ func TestUnionIterator(t *testing.T) {
 	}{
 		{
 			name:        "Union no iterators",
-			iters:       func() []Iterator[any] { return []Iterator[any]{} },
+			iters:       func() []Stream[any] { return []Stream[any]{} },
 			wantHasNext: false,
 			wantCollect: []any{},
 			wantNext:    []any{},
 		},
 		{
 			name:        "One simple iterator",
-			iters:       func() []Iterator[any] { return []Iterator[any]{IterateSlice([]any{1, 2, 3, 4})} },
+			iters:       func() []Stream[any] { return []Stream[any]{IterateSlice([]any{1, 2, 3, 4})} },
 			wantHasNext: true,
 			wantCollect: []any{1, 2, 3, 4},
 			wantNext:    []any{1, 2, 3, 4},
 		},
 		{
 			name: "Two simple iterators",
-			iters: func() []Iterator[any] {
-				return []Iterator[any]{
+			iters: func() []Stream[any] {
+				return []Stream[any]{
 					IterateSlice([]any{1, 3, 5}),
 					IterateSlice([]any{2, 4, 6}),
 				}
@@ -351,8 +351,8 @@ func TestUnionIterator(t *testing.T) {
 		},
 		{
 			name: "Two simple iterators and empty one",
-			iters: func() []Iterator[any] {
-				return []Iterator[any]{
+			iters: func() []Stream[any] {
+				return []Stream[any]{
 					IterateSlice([]any{1, 3, 5}),
 					IterateSlice([]any{}),
 					IterateSlice([]any{2, 4, 6}),
@@ -364,8 +364,8 @@ func TestUnionIterator(t *testing.T) {
 		},
 		{
 			name: "Two empty iterators and normal one",
-			iters: func() []Iterator[any] {
-				return []Iterator[any]{
+			iters: func() []Stream[any] {
+				return []Stream[any]{
 					IterateSlice([]any{}),
 					IterateSlice([]any{}),
 					IterateSlice([]any{1, 2, 3, 4, 5, 6}),
@@ -377,8 +377,8 @@ func TestUnionIterator(t *testing.T) {
 		},
 		{
 			name: "Multilevel union",
-			iters: func() []Iterator[any] {
-				return []Iterator[any]{
+			iters: func() []Stream[any] {
+				return []Stream[any]{
 					Union(
 						IterateSlice([]any{1, 5}),
 						IterateSlice([]any{3, 7, 8, 9}),
@@ -422,7 +422,7 @@ func TestConcatIterator(t *testing.T) {
 
 	for _, tc := range []struct {
 		name        string
-		iters       func() []Iterator[any]
+		iters       func() []Stream[any]
 		wantHasNext bool
 		wantCollect []any
 		wantNext    []any
@@ -431,22 +431,22 @@ func TestConcatIterator(t *testing.T) {
 	}{
 		{
 			name:        "Concat no iterators",
-			iters:       func() []Iterator[any] { return []Iterator[any]{} },
+			iters:       func() []Stream[any] { return []Stream[any]{} },
 			wantHasNext: false,
 			wantCollect: []any{},
 			wantNext:    []any{},
 		},
 		{
 			name:        "One simple iterator",
-			iters:       func() []Iterator[any] { return []Iterator[any]{IterateSlice([]any{1, 2, 3, 4})} },
+			iters:       func() []Stream[any] { return []Stream[any]{IterateSlice([]any{1, 2, 3, 4})} },
 			wantHasNext: true,
 			wantCollect: []any{1, 2, 3, 4},
 			wantNext:    []any{1, 2, 3, 4},
 		},
 		{
 			name: "Two simple iterators",
-			iters: func() []Iterator[any] {
-				return []Iterator[any]{
+			iters: func() []Stream[any] {
+				return []Stream[any]{
 					IterateSlice([]any{1, 2, 3}),
 					IterateSlice([]any{4, 5, 6}),
 				}
@@ -457,8 +457,8 @@ func TestConcatIterator(t *testing.T) {
 		},
 		{
 			name: "Two simple iterators and empty one",
-			iters: func() []Iterator[any] {
-				return []Iterator[any]{
+			iters: func() []Stream[any] {
+				return []Stream[any]{
 					IterateSlice([]any{1, 2, 3}),
 					IterateSlice([]any{}),
 					IterateSlice([]any{4, 5, 6}),
@@ -470,8 +470,8 @@ func TestConcatIterator(t *testing.T) {
 		},
 		{
 			name: "Two empty iterators and normal one",
-			iters: func() []Iterator[any] {
-				return []Iterator[any]{
+			iters: func() []Stream[any] {
+				return []Stream[any]{
 					IterateSlice([]any{}),
 					IterateSlice([]any{}),
 					IterateSlice([]any{1, 2, 3, 4, 5, 6}),

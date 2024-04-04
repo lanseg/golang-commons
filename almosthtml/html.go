@@ -19,13 +19,6 @@ var (
 	emptyParam = &optional.Nothing[string]{}
 )
 
-func getChildren(n *Node) []*Node {
-	if n.Children == nil {
-		return []*Node{}
-	}
-	return n.Children
-}
-
 // Node is something like a html element: tag or text data.
 type Node struct {
 	Name     string
@@ -34,7 +27,7 @@ type Node struct {
 	Children []*Node
 }
 
-func (n *Node) iterateChildren() collections.Iterator[*Node] {
+func (n *Node) iterateChildren() collections.Stream[*Node] {
 	return collections.IterateTree(n, collections.DepthFirst, func(node *Node) []*Node {
 		if node.Children == nil {
 			return []*Node{}
