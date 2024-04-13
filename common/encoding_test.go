@@ -6,37 +6,59 @@ import (
 )
 
 type someStruct struct {
-	SomeInt    int    `json:"some_int"`
-	SomeString string `json:"some_string"`
+	value any
+	child *someStruct
 }
 
-func TestFromJson(t *testing.T) {
+func TestSet(t *testing.T) {
+
+	someA := &someStruct{
+		value: 123,
+		child: &someStruct{
+			value: 456,
+		},
+	}
 
 	for _, tc := range []struct {
-		name    string
-		json    string
-		want    *someStruct
-		wantErr bool
+		name   string
+		src    any
+		target any
 	}{
 		{
-			name: "normal json",
-			json: "{\"some_int\": 1234, \"some_string\": \"abcd\"}",
-			want: &someStruct{1234, "abcd"},
+			name:   "primitive type set",
+			src:    1,
+			target: 2,
 		},
 		{
-			name:    "broken json",
-			json:    "{wefwef",
-			wantErr: true,
+			name:   "primitive and nil set",
+			src:    1,
+			target: nil,
+		},
+		{
+			name:   "nil and primitive set",
+			src:    nil,
+			target: "123",
+		},
+		{
+			name:   "nil and nil set",
+			src:    nil,
+			target: nil,
+		},
+		{
+			name:   "struct fields",
+			src:    someA.value,
+			target: someA.child.value,
+		},
+		{
+			name:   "struct itself",
+			src:    someA,
+			target: nil,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := FromJson[someStruct]([]byte(tc.json))
-			if (err != nil && !tc.wantErr) || (err == nil && tc.wantErr) {
-				t.Errorf("Unexpected error or missing an expected error: %v", err)
-			}
-
-			if !reflect.DeepEqual(result, tc.want) {
-				t.Errorf("expected FromJson to return %s, but got %s", tc.want, result)
+			Set(&tc.target)(tc.src)
+			if !reflect.DeepEqual(tc.target, tc.src) {
+				t.Errorf("Expected target == src, but got %v and %v", tc.src, tc.target)
 			}
 		})
 	}
