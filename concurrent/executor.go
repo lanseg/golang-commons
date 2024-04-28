@@ -29,41 +29,31 @@ func RunPeriodically(f func(), stop chan bool, interval time.Duration) {
 	}()
 }
 
-type Runnable interface {
-	Run()
-}
-
-type runnableImpl struct {
-	Runnable
-
+type runnable struct {
 	f func()
 }
 
-func (ri *runnableImpl) Run() {
+func (ri *runnable) Run() {
 	ri.f()
 }
 
-func Run(f func()) Runnable {
-	return &runnableImpl{
-		f: f,
-	}
-}
-
 type Executor interface {
-	Execute(task Runnable)
+	Execute(task func())
 	Shutdown()
 }
 
 type poolExecutor struct {
 	Executor
 
-	tasksToRun  chan Runnable
+	tasksToRun  chan *runnable
 	stopSignal  chan bool
 	workerCount int
 }
 
-func (pe *poolExecutor) Execute(task Runnable) {
-	pe.tasksToRun <- task
+func (pe *poolExecutor) Execute(task func()) {
+	pe.tasksToRun <- &runnable{
+		f: task,
+	}
 }
 
 func (pe *poolExecutor) Shutdown() {
@@ -96,7 +86,7 @@ func NewPoolExecutor(workerCount int) (Executor, error) {
 	}
 	ex := &poolExecutor{
 		workerCount: workerCount,
-		tasksToRun:  make(chan Runnable, workerCount),
+		tasksToRun:  make(chan *runnable, workerCount),
 		stopSignal:  make(chan bool, workerCount),
 	}
 	ex.initWorkers()

@@ -5,11 +5,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
-)
-
-const (
-	testPeriodicInterval = 100 * time.Millisecond
 )
 
 func TestRunPeriodically(t *testing.T) {
@@ -40,9 +35,9 @@ func TestExecutor(t *testing.T) {
 		}
 		stop := sync.Mutex{}
 		stop.Lock()
-		ex.Execute(Run(func() {
+		ex.Execute(func() {
 			stop.Unlock()
-		}))
+		})
 		stop.Lock()
 	})
 
@@ -56,10 +51,10 @@ func TestExecutor(t *testing.T) {
 		wg := sync.WaitGroup{}
 		wg.Add(execs)
 		for i := range execs {
-			ex.Execute(Run(func() {
+			ex.Execute(func() {
 				fmt.Printf("Thread %d\n", i)
 				wg.Done()
-			}))
+			})
 		}
 		wg.Wait()
 	})
