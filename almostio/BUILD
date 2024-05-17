@@ -9,7 +9,7 @@ go_library(
         "multiwritecloser.go",
         "overlay.go",
     ],
-    importpath = "gitthub.com/lanseg/golang-commons/almostio",
+    importpath = "github.com/lanseg/golang-commons/almostio",
     deps = [
 
     ],
