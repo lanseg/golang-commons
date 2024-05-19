@@ -56,6 +56,7 @@ type localOverlay struct {
 
 	lockMap  sync.Mutex
 	locks    map[string]*sync.Mutex
+	marshal  func(i interface{}) ([]byte, error)
 	metadata *OverlayMetadata
 
 	root string
@@ -99,7 +100,7 @@ func (lo *localOverlay) saveMetadata(md *FileMetadata) error {
 	}
 	lo.metadata.FileMetadata[md.BucketId][md.Name] = md
 
-	data, err := json.Marshal(lo.metadata)
+	data, err := lo.marshal(lo.metadata)
 	if err != nil {
 		return err
 	}
@@ -175,6 +176,7 @@ func NewLocalOverlay(root string) (Overlay, error) {
 	ol := &localOverlay{
 		root:     root,
 		locks:    map[string]*sync.Mutex{},
+		marshal:  json.Marshal,
 		metadata: mdata,
 	}
 	return ol, nil
