@@ -3,7 +3,6 @@ package almostio
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,8 +29,8 @@ type FileMetadata struct {
 	BucketId  string `json:"bucketId"`
 	Name      string `json:"name"`
 	LocalName string `json:"localName"`
-	Sha256    string `json: "sha256"`
-	Mime      string `json: "mime"`
+	Sha256    string `json:"sha256"`
+	Mime      string `json:"mime"`
 }
 
 func safeName(name string) string {
@@ -56,7 +55,7 @@ type localOverlay struct {
 
 	lockMap  sync.Mutex
 	locks    map[string]*sync.Mutex
-	marshal  func(i interface{}) ([]byte, error)
+	marshal  *Marshaller[OverlayMetadata]
 	metadata *OverlayMetadata
 
 	root string
@@ -100,7 +99,7 @@ func (lo *localOverlay) saveMetadata(md *FileMetadata) error {
 	}
 	lo.metadata.FileMetadata[md.BucketId][md.Name] = md
 
-	data, err := lo.marshal(lo.metadata)
+	data, err := lo.marshal.Marshal(lo.metadata)
 	if err != nil {
 		return err
 	}
@@ -151,7 +150,7 @@ func (lo *localOverlay) OpenWrite(bucketId string, name string) (io.WriteCloser,
 		}), nil
 }
 
-func NewLocalOverlay(root string) (Overlay, error) {
+func NewLocalOverlay(root string, marshaller *Marshaller[OverlayMetadata]) (Overlay, error) {
 	systemFolder := filepath.Join(root, systemFolderName)
 	metadataFile := filepath.Join(systemFolder, metadataFileName)
 	if _, err := os.Stat(root); os.IsNotExist(err) {
@@ -168,15 +167,15 @@ func NewLocalOverlay(root string) (Overlay, error) {
 		return nil, err
 	}
 
-	mdata := &OverlayMetadata{}
-	if err = json.Unmarshal(data, mdata); err != nil {
+	mdata, err := marshaller.Unmarshal(data)
+	if err != nil {
 		return nil, err
 	}
 
 	ol := &localOverlay{
 		root:     root,
 		locks:    map[string]*sync.Mutex{},
-		marshal:  json.Marshal,
+		marshal:  marshaller,
 		metadata: mdata,
 	}
 	return ol, nil

@@ -212,7 +212,7 @@ func TestOverlay(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			o, err := NewLocalOverlay(filepath.Join(t.TempDir(), "overlay_root"))
+			o, err := NewLocalOverlay(filepath.Join(t.TempDir(), "overlay_root"), NewJsonMarshal[OverlayMetadata]())
 			if err != nil {
 				t.Errorf("Error while starting an overlay: %v", err)
 				return

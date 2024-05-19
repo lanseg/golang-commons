@@ -7,6 +7,7 @@ go_library(
     srcs = [
         "fixedsizewriter.go",
         "multiwritecloser.go",
+        "marshal.go",
         "overlay.go",
     ],
     importpath = "github.com/lanseg/golang-commons/almostio",
