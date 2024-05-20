@@ -71,11 +71,11 @@ func (mw *MultiWriteCloser) Close() error {
 func (mw *MultiWriteCloser) Write(b []byte) (int, error) {
 	for _, wc := range mw.writers {
 		written, err := wc.Write(b)
-		if written != len(b) {
-			return 0, io.ErrShortWrite
-		}
 		if err != nil {
 			return 0, err
+		}
+		if written != len(b) {
+			return 0, io.ErrShortWrite
 		}
 	}
 	return len(b), nil

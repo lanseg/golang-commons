@@ -26,3 +26,15 @@ go_test(
         ":almostio",
     ],
 )
+
+
+go_test(
+    name = "almostio_benchmark",
+    size = "large",
+    srcs = [
+        "overlay_benchmark.go",
+    ],
+    embed = [
+        ":almostio",
+    ],
+)

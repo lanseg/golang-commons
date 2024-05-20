@@ -21,7 +21,8 @@ func (fsw *fixedSizeWriter) Write(b []byte) (int, error) {
 		copySize = len(b)
 	}
 	fsw.written += copySize
-	return fsw.parent.Write(b[:copySize])
+	_, err := fsw.parent.Write(b[:copySize])
+	return len(b), err
 }
 
 func FixedSizeWriter(w io.Writer, maxCapacity int) io.Writer {
