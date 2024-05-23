@@ -286,13 +286,16 @@ func TestOverlay(t *testing.T) {
 			result := []*sampleFile{}
 			for _, f := range tc.expectedFiles {
 				reader, err := o.OpenRead(f.originalFileName)
-				content := []byte{}
-				if err == nil {
-					content, err = io.ReadAll(reader)
+				if err != nil {
+					t.Errorf("Error while opening %s for reading: %s", f.originalFileName, err)
+					continue
 				}
-				if err == nil {
-					result = append(result, &sampleFile{f.originalFileName, content})
+				content, err := io.ReadAll(reader)
+				if err != nil {
+					t.Errorf("Error while reading from  %s: %s", f.originalFileName, err)
+					continue
 				}
+				result = append(result, &sampleFile{f.originalFileName, content})
 			}
 
 			if !reflect.DeepEqual(result, tc.expectedFiles) {

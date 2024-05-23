@@ -95,7 +95,11 @@ func (lo *localOverlay) saveMetadata(fmd *FileMetadata) error {
 }
 
 func (lo *localOverlay) OpenRead(name string) (io.ReadCloser, error) {
-	f, err := os.Open(lo.resolve(lo.safeName(name)))
+	if lo.metadata == nil || lo.metadata.FileMetadata == nil || lo.metadata.FileMetadata[name] == nil {
+		return nil, os.ErrNotExist
+	}
+	md := lo.metadata.FileMetadata[name]
+	f, err := os.Open(lo.resolve(md.LocalName))
 	if err != nil {
 		return nil, err
 	}
