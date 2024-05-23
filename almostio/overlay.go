@@ -65,10 +65,10 @@ func (lo *localOverlay) safeName(name string) string {
 	nameHash := fmt.Sprintf("%x", h.Sum([]byte{}))
 
 	newName := nonAlphanumericRegex.ReplaceAllString(name, "_")
-	if len(newName) > maxNameLength+len(nameHash) {
+	if len(newName) > maxNameLength-len(nameHash)-1 {
 		newName = newName[len(newName)-maxNameLength+len(nameHash):]
 	}
-	return nameHash + newName
+	return nameHash + "_" + newName
 }
 
 func (lo *localOverlay) saveMetadata(fmd *FileMetadata) error {
