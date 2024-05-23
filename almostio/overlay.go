@@ -111,7 +111,7 @@ func (lo *localOverlay) OpenWrite(name string) (io.WriteCloser, error) {
 	defer lo.lock.Unlock()
 
 	safe := lo.safeName(name)
-	fwc, err := os.OpenFile(lo.resolve(safe), os.O_WRONLY|os.O_CREATE, defaultPermissions)
+	fwc, err := os.OpenFile(lo.resolve(safe), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, defaultPermissions)
 	if err != nil {
 		return nil, err
 	}
