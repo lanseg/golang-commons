@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"net/http"
 	"os"
@@ -13,11 +14,11 @@ import (
 )
 
 var (
-	nonAlphanumericRegex = regexp.MustCompile("[^a-zA-Z0-9\\.]+")
+	nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9\.]+`)
 )
 
 const (
-	maxNameLength         = 250
+	maxNameLength         = 200
 	mimeBlockSize         = 512
 	defaultDirPermissions = 0777
 	defaultPermissions    = 0644
@@ -26,79 +27,63 @@ const (
 )
 
 type FileMetadata struct {
-	BucketId  string `json:"bucketId"`
 	Name      string `json:"name"`
 	LocalName string `json:"localName"`
 	Sha256    string `json:"sha256"`
 	Mime      string `json:"mime"`
 }
 
-func safeName(name string) string {
-	newName := nonAlphanumericRegex.ReplaceAllString(name, "_")
-	if len(newName) > maxNameLength {
-		newName = newName[:len(newName)-maxNameLength]
-	}
-	return newName
-}
-
 type Overlay interface {
-	OpenRead(bucketId string, name string) (io.ReadCloser, error)
-	OpenWrite(bucketId string, name string) (io.WriteCloser, error)
+	OpenRead(name string) (io.ReadCloser, error)
+	OpenWrite(name string) (io.WriteCloser, error)
 }
 
 type OverlayMetadata struct {
-	FileMetadata map[string](map[string]*FileMetadata) `json:"fileMetadata"`
+	FileMetadata map[string]*FileMetadata `json:"fileMetadata"`
 }
 
 type localOverlay struct {
 	Overlay
 
-	lockMap  sync.Mutex
-	locks    map[string]*sync.Mutex
+	lock sync.Mutex
+
 	marshal  *Marshaller[OverlayMetadata]
 	metadata *OverlayMetadata
 
 	root string
 }
 
-func (lo *localOverlay) getLock(key string) *sync.Mutex {
-	lo.lockMap.Lock()
-	defer lo.lockMap.Unlock()
-
-	mtx, ok := lo.locks[key]
-	if ok {
-		return mtx
-	}
-
-	lo.locks[key] = &sync.Mutex{}
-	return lo.locks[key]
-}
-
-func (lo *localOverlay) lockBucket(id string) {
-	lo.getLock(id).Lock()
-}
-
-func (lo *localOverlay) unlockBucket(id string) {
-	lo.getLock(id).Unlock()
-}
-
 func (lo *localOverlay) resolve(path ...string) string {
 	return filepath.Join(append([]string{lo.root}, path...)...)
 }
 
-func (lo *localOverlay) saveMetadata(md *FileMetadata) error {
-	lo.lockMap.Lock()
-	defer lo.lockMap.Unlock()
+func (lo *localOverlay) safeName(name string) string {
+	h := fnv.New32a()
+	h.Write([]byte(name))
+	nameHash := fmt.Sprintf("%x", h.Sum([]byte{}))
+
+	newName := nonAlphanumericRegex.ReplaceAllString(name, "_")
+	if len(newName) > maxNameLength+len(nameHash) {
+		newName = nameHash + newName[len(newName)-maxNameLength+len(nameHash):]
+	}
+	return newName
+}
+
+func (lo *localOverlay) saveMetadata(fmd *FileMetadata) error {
+	lo.lock.Lock()
+	defer lo.lock.Unlock()
+
+	if lo.metadata == nil {
+		lo.metadata = &OverlayMetadata{
+			FileMetadata: map[string]*FileMetadata{},
+		}
+	}
 
 	if lo.metadata.FileMetadata == nil {
-		lo.metadata.FileMetadata = map[string](map[string]*FileMetadata){}
+		lo.metadata.FileMetadata = map[string]*FileMetadata{}
 	}
 
-	if lo.metadata.FileMetadata[md.BucketId] == nil {
-		lo.metadata.FileMetadata[md.BucketId] = map[string]*FileMetadata{}
-	}
-	lo.metadata.FileMetadata[md.BucketId][md.Name] = md
-
+	lo.metadata.FileMetadata[fmd.Name] = fmd
 	data, err := lo.marshal.Marshal(lo.metadata)
 	if err != nil {
 		return err
@@ -107,34 +92,22 @@ func (lo *localOverlay) saveMetadata(md *FileMetadata) error {
 	return os.WriteFile(filepath.Join(lo.root, systemFolderName, metadataFileName), data, defaultPermissions)
 }
 
-func (lo *localOverlay) OpenRead(bucketId string, name string) (io.ReadCloser, error) {
-	f, err := os.Open(lo.resolve(bucketId, safeName(name)))
+func (lo *localOverlay) OpenRead(name string) (io.ReadCloser, error) {
+	f, err := os.Open(lo.resolve(lo.safeName(name)))
 	if err != nil {
 		return nil, err
 	}
 	return io.ReadCloser(f), nil
 }
 
-func (lo *localOverlay) OpenWrite(bucketId string, name string) (io.WriteCloser, error) {
-	lo.lockBucket(bucketId)
-	defer lo.unlockBucket(bucketId)
+func (lo *localOverlay) OpenWrite(name string) (io.WriteCloser, error) {
+	lo.lock.Lock()
+	defer lo.lock.Unlock()
 
-	if err := os.MkdirAll(lo.resolve(bucketId), defaultDirPermissions); err != nil {
-		return nil, err
-	}
-	safe := safeName(name)
-	fwc, err := os.OpenFile(
-		lo.resolve(bucketId, safe), os.O_WRONLY|os.O_CREATE, defaultPermissions)
+	safe := lo.safeName(name)
+	fwc, err := os.OpenFile(lo.resolve(safe), os.O_WRONLY|os.O_CREATE, defaultPermissions)
 	if err != nil {
 		return nil, err
-	}
-
-	metadata := &FileMetadata{
-		BucketId:  bucketId,
-		Name:      name,
-		LocalName: safe,
-		Sha256:    "",
-		Mime:      "",
 	}
 
 	mimeBuffer := bytes.NewBuffer([]byte{})
@@ -144,19 +117,23 @@ func (lo *localOverlay) OpenWrite(bucketId string, name string) (io.WriteCloser,
 		AddWriter(sha).
 		AddWriter(FixedSizeWriter(mimeBuffer, mimeBlockSize)).
 		SetOnClose(func() {
-			metadata.Sha256 = fmt.Sprintf("%x", sha.Sum(nil))
-			metadata.Mime = http.DetectContentType(mimeBuffer.Bytes())
-			lo.saveMetadata(metadata)
+			lo.saveMetadata(&FileMetadata{
+				Name:      name,
+				LocalName: safe,
+				Sha256:    fmt.Sprintf("%x", sha.Sum(nil)),
+				Mime:      http.DetectContentType(mimeBuffer.Bytes()),
+			})
 		}), nil
 }
 
 func NewLocalOverlay(root string, marshaller *Marshaller[OverlayMetadata]) (Overlay, error) {
 	systemFolder := filepath.Join(root, systemFolderName)
 	metadataFile := filepath.Join(systemFolder, metadataFileName)
-	if _, err := os.Stat(root); os.IsNotExist(err) {
-		if err = os.MkdirAll(systemFolder, defaultDirPermissions); err != nil {
-			return nil, err
-		}
+	if err := os.MkdirAll(systemFolder, defaultDirPermissions); err != nil && err != os.ErrExist {
+		return nil, err
+	}
+
+	if _, err := os.Stat(metadataFile); os.IsNotExist(err) {
 		if err = os.WriteFile(metadataFile, []byte("{}"), defaultPermissions); err != nil {
 			return nil, err
 		}
@@ -174,7 +151,7 @@ func NewLocalOverlay(root string, marshaller *Marshaller[OverlayMetadata]) (Over
 
 	ol := &localOverlay{
 		root:     root,
-		locks:    map[string]*sync.Mutex{},
+		lock:     sync.Mutex{},
 		marshal:  marshaller,
 		metadata: mdata,
 	}

@@ -2,8 +2,9 @@ package almostio
 
 import (
 	"bytes"
-	"fmt"
 	"io"
+	"math/rand"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -122,7 +123,6 @@ func TestMultiWriteCloserRegressions(t *testing.T) {
 			t.Errorf("Expected to copy %d bytes, but got %d.", len(toCopy), copied)
 			return
 		}
-		fmt.Printf("HERE: %s %s\n", string(fwc1.Data), string(fwc2.Data))
 		mwc.Close()
 		if !closed {
 			t.Errorf("OnClose was not called during close")
@@ -135,8 +135,54 @@ type sampleFile struct {
 	content          []byte
 }
 
+func makeString(len int) string {
+	result := make([]byte, len)
+	for i := range len {
+		result[i] = byte(rand.Intn('Z'-'A') + 'A')
+	}
+	return string(result)
+}
+
 func TestOverlay(t *testing.T) {
 
+	t.Run("Create root folder if none", func(t *testing.T) {
+		tmp := t.TempDir()
+		NewLocalOverlay(filepath.Join(tmp, "overlay_root"), NewJsonMarshal[OverlayMetadata]())
+		if _, err := os.Stat(filepath.Join(tmp, "overlay_root", systemFolderName, metadataFileName)); os.IsNotExist(err) {
+			t.Errorf("Overlay structure not created")
+		}
+	})
+
+	t.Run("Create empty folder if no system folder", func(t *testing.T) {
+		tmp := t.TempDir()
+		os.MkdirAll(filepath.Join(tmp, "overlay_root"), defaultDirPermissions)
+		NewLocalOverlay(filepath.Join(tmp, "overlay_root"), NewJsonMarshal[OverlayMetadata]())
+		if _, err := os.Stat(filepath.Join(tmp, "overlay_root", systemFolderName, metadataFileName)); os.IsNotExist(err) {
+			t.Errorf("Overlay structure not created")
+		}
+	})
+
+	t.Run("Create empty file if no metadata file", func(t *testing.T) {
+		tmp := t.TempDir()
+		os.MkdirAll(filepath.Join(tmp, "overlay_root", systemFolderName), defaultDirPermissions)
+		NewLocalOverlay(filepath.Join(tmp, "overlay_root"), NewJsonMarshal[OverlayMetadata]())
+		if _, err := os.Stat(filepath.Join(tmp, "overlay_root", systemFolderName, metadataFileName)); os.IsNotExist(err) {
+			t.Errorf("Overlay structure not created")
+		}
+	})
+
+	t.Run("Create empty file if no metadata file", func(t *testing.T) {
+		tmp := t.TempDir()
+		os.MkdirAll(filepath.Join(tmp, "overlay_root", systemFolderName), defaultDirPermissions)
+		if _, err := NewLocalOverlay(filepath.Join(tmp, "overlay_root"), NewJsonMarshal[OverlayMetadata]()); err != nil {
+			t.Errorf("Cannot create overlay: %s", err)
+		}
+		if _, err := os.Stat(filepath.Join(tmp, "overlay_root", systemFolderName, metadataFileName)); os.IsNotExist(err) {
+			t.Errorf("Overlay structure not created")
+		}
+	})
+
+	veryLongName := makeString(1000)
 	for _, tc := range []struct {
 		name          string
 		originalFiles []*sampleFile
@@ -195,6 +241,13 @@ func TestOverlay(t *testing.T) {
 			},
 		},
 		{
+			name: "Very long file name",
+			originalFiles: []*sampleFile{
+				{veryLongName, []byte{1, 2, 3}},
+				{veryLongName + "1", []byte{4, 5, 6}},
+			},
+		},
+		{
 			name: "PNG file header",
 			originalFiles: []*sampleFile{
 				{"File 1", []byte{
@@ -218,7 +271,7 @@ func TestOverlay(t *testing.T) {
 				return
 			}
 			for _, f := range tc.originalFiles {
-				wc, err := o.OpenWrite("someid", f.originalFileName)
+				wc, err := o.OpenWrite(f.originalFileName)
 				if err != nil {
 					t.Errorf("Error while writing file %v: %v", f, err)
 					return
@@ -232,7 +285,7 @@ func TestOverlay(t *testing.T) {
 
 			result := []*sampleFile{}
 			for _, f := range tc.expectedFiles {
-				reader, err := o.OpenRead("someid", f.originalFileName)
+				reader, err := o.OpenRead(f.originalFileName)
 				content := []byte{}
 				if err == nil {
 					content, err = io.ReadAll(reader)
