@@ -33,11 +33,13 @@ type FileMetadata struct {
 	Mime      string `json:"mime"`
 }
 
+// Overlay is an extra layer between the filesystem (io) and the user code.
 type Overlay interface {
 	OpenRead(name string) (io.ReadCloser, error)
 	OpenWrite(name string) (io.WriteCloser, error)
 }
 
+// OverlayMetadata contains a system information for the overlay (e.g. file list)
 type OverlayMetadata struct {
 	FileMetadata map[string]*FileMetadata `json:"fileMetadata"`
 }
@@ -64,9 +66,9 @@ func (lo *localOverlay) safeName(name string) string {
 
 	newName := nonAlphanumericRegex.ReplaceAllString(name, "_")
 	if len(newName) > maxNameLength+len(nameHash) {
-		newName = nameHash + newName[len(newName)-maxNameLength+len(nameHash):]
+		newName = newName[len(newName)-maxNameLength+len(nameHash):]
 	}
-	return newName
+	return nameHash + newName
 }
 
 func (lo *localOverlay) saveMetadata(fmd *FileMetadata) error {

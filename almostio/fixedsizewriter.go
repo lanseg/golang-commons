@@ -12,6 +12,8 @@ type fixedSizeWriter struct {
 	maxSize int
 }
 
+// Write sends bytes to the underlying writer, but not more than given amount.
+// Always returns len(b) as the result to avoid "short write" errors
 func (fsw *fixedSizeWriter) Write(b []byte) (int, error) {
 	copySize := fsw.maxSize - fsw.written
 	if copySize <= 0 {
@@ -25,6 +27,7 @@ func (fsw *fixedSizeWriter) Write(b []byte) (int, error) {
 	return len(b), err
 }
 
+// FixedSizeWriter creates writer that forwards at most maxCapacity byte to the underlying writer.
 func FixedSizeWriter(w io.Writer, maxCapacity int) io.Writer {
 	return &fixedSizeWriter{
 		parent:  w,
