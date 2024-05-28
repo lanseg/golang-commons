@@ -88,6 +88,7 @@ func TestNothing(t *testing.T) {
 	expect(t, nothing.Filter(False[string]) == nothing, "Nothing.Filter should return nothing")
 	expect(t, nothing.OrElse("whatever") == "whatever", "Nothing.OrElse should return else value")
 	expect(t, nothing.Map(strings.ToLower) == nothing, "Nothing.Map should return nothing")
+	expect(t, nothing.GetError() == nil, "Nothing.GetError should return nil")
 
 	_, err := nothing.Get()
 	if err != ErrNoSuchElement {
@@ -111,6 +112,7 @@ func TestJust(t *testing.T) {
 	expect(t, just.Filter(False[string]) == Nothing[string]{}, "Just.Filter should return nothing for false")
 	expect(t, just.Filter(True[string]) == just, "Just.Filter should return itself for true")
 	expect(t, just.OrElse("whatever2") == "whatever", "Just.OrElse should return its value")
+	expect(t, just.GetError() == nil, "Just.GetError should return nil")
 
 	upper, _ := just.Map(strings.ToUpper).Get()
 	if upper != "WHATEVER" {
@@ -138,6 +140,8 @@ func TestError(t *testing.T) {
 	if err.Error() != "Whatever" {
 		t.Errorf("Error.Get should return internal error, but got %v", err)
 	}
+
+	expect(t, e.GetError().Error() == "Whatever", "Error.GetError should return error")
 }
 
 func TestMap(t *testing.T) {
