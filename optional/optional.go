@@ -21,6 +21,7 @@ func True[T any](value T) bool {
 type Optional[T any] interface {
 	IsPresent() bool
 	IfPresent(func(T))
+	If(present func(T), err func(error), nothing func())
 	Filter(p Predicate[T]) Optional[T]
 	OrElse(other T) T
 	GetError() error
@@ -68,34 +69,42 @@ func (j Just[T]) GetError() error {
 	return nil
 }
 
+func (j Just[T]) If(present func(T), err func(error), nothing func()) {
+	present(j.value)
+}
+
 // Optional subtype that contains nothing
 type Nothing[T any] struct {
 }
 
-func (j Nothing[T]) IsPresent() bool {
+func (n Nothing[T]) IsPresent() bool {
 	return false
 }
 
-func (j Nothing[T]) IfPresent(_ func(T)) {}
+func (n Nothing[T]) IfPresent(_ func(T)) {}
 
-func (j Nothing[T]) Filter(p Predicate[T]) Optional[T] {
-	return j
+func (n Nothing[T]) Filter(p Predicate[T]) Optional[T] {
+	return n
 }
 
-func (j Nothing[T]) OrElse(other T) T {
+func (n Nothing[T]) OrElse(other T) T {
 	return other
 }
 
-func (j Nothing[T]) Get() (T, error) {
+func (n Nothing[T]) Get() (T, error) {
 	return *new(T), ErrNoSuchElement
 }
 
-func (j Nothing[T]) Map(func(T) T) Optional[T] {
-	return j
+func (n Nothing[T]) Map(func(T) T) Optional[T] {
+	return n
 }
 
-func (j Nothing[T]) GetError() error {
+func (n Nothing[T]) GetError() error {
 	return nil
+}
+
+func (n Nothing[T]) If(present func(T), err func(error), nothing func()) {
+	nothing()
 }
 
 // Optional subtype that contains an error
@@ -111,6 +120,10 @@ func (e Error[T]) Get() (T, error) {
 
 func (e Error[T]) GetError() error {
 	return e.err
+}
+
+func (e Error[T]) If(present func(T), err func(error), nothing func()) {
+	err(e.err)
 }
 
 // Constructs an Optional from a value type

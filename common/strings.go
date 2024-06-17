@@ -12,7 +12,7 @@ func Ellipsis(s string, maxLength int, breakOnSpace bool) string {
 		return ""
 	}
 	maxTextLength := maxLength - 3
-	if len(s) < maxLength {
+	if len(s) <= maxLength {
 		return s
 	}
 	sb := strings.Builder{}

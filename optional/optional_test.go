@@ -101,6 +101,21 @@ func TestNothing(t *testing.T) {
 		*ptr = "ifpresent"
 	})
 	expect(t, *ptr == "123456", "Nothing.IfPresent should not be invoked")
+
+	invoked := false
+	nothing.If(
+		func(s string) {
+			t.Errorf("Nothing not expected to invoke If-present: %s", s)
+		},
+		func(e error) {
+			t.Errorf("Nothing not expected to invoke If-error: %s", e)
+		},
+		func() {
+			invoked = true
+		})
+	if !invoked {
+		t.Errorf("Nothing expected to invoke If-nothing")
+	}
 }
 
 func TestJust(t *testing.T) {
@@ -130,6 +145,19 @@ func TestJust(t *testing.T) {
 		*ptr = s
 	})
 	expect(t, *ptr == just.value, "Just.IfPresent should be invoked")
+
+	*ptr = "123456"
+	just.If(
+		func(s string) {
+			*ptr = s
+		},
+		func(e error) {
+			t.Errorf("Just not expected to invoke If-error: %s", e)
+		},
+		func() {
+			t.Errorf("Just not expected to invoke If-nothing")
+		})
+	expect(t, *ptr == just.value, "Just.If-present should be invoked")
 }
 
 func TestError(t *testing.T) {
@@ -142,6 +170,20 @@ func TestError(t *testing.T) {
 	}
 
 	expect(t, e.GetError().Error() == "Whatever", "Error.GetError should return error")
+
+	ptr := new(error)
+	*ptr = fmt.Errorf("An error")
+	e.If(
+		func(s string) {
+			t.Errorf("Error not expected to invoke If-present: %s", s)
+		},
+		func(e error) {
+			*ptr = e
+		},
+		func() {
+			t.Errorf("Error not expected to invoke If-nothing")
+		})
+	expect(t, *ptr == e.err, "Just.If-error should be invoked")
 }
 
 func TestMap(t *testing.T) {
