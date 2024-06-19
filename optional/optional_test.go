@@ -9,6 +9,12 @@ import (
 	"testing"
 )
 
+func doNothing() {}
+
+func doNothingStr(string) {}
+
+func doNothingErr(error) {}
+
 type someNullable struct {
 	someValue string
 }
@@ -84,38 +90,68 @@ func TestOf(t *testing.T) {
 func TestNothing(t *testing.T) {
 	nothing := Nothing[string]{}
 
-	expect(t, !nothing.IsPresent(), "Nothing.IsPresent should return false")
-	expect(t, nothing.Filter(False[string]) == nothing, "Nothing.Filter should return nothing")
-	expect(t, nothing.OrElse("whatever") == "whatever", "Nothing.OrElse should return else value")
-	expect(t, nothing.Map(strings.ToLower) == nothing, "Nothing.Map should return nothing")
-	expect(t, nothing.GetError() == nil, "Nothing.GetError should return nil")
-
-	_, err := nothing.Get()
-	if err != ErrNoSuchElement {
-		t.Errorf("Nothing.Get should return error")
-	}
-
-	ptr := new(string)
-	*ptr = "123456"
-	nothing.IfPresent(func(s string) {
-		*ptr = "ifpresent"
+	t.Run("Nothing basic methods implementation", func(t *testing.T) {
+		expect(t, !nothing.IsPresent(), "Nothing.IsPresent should return false")
+		expect(t, nothing.Filter(False[string]) == nothing, "Nothing.Filter should return nothing")
+		expect(t, nothing.OrElse("whatever") == "whatever", "Nothing.OrElse should return else value")
+		expect(t, nothing.Map(strings.ToLower) == nothing, "Nothing.Map should return nothing")
+		expect(t, nothing.GetError() == nil, "Nothing.GetError should return nil")
+		expect(t, nothing.IfPresent(doNothingStr) == nothing, "Nothing.IfPresent(...) returns itself")
+		expect(t, nothing.IfError(doNothingErr) == nothing, "Nothing.IfError(...) returns itself")
+		expect(t, nothing.IfNothing(doNothing) == nothing, "Nothing.IfNothing(...) returns itself")
 	})
-	expect(t, *ptr == "123456", "Nothing.IfPresent should not be invoked")
 
-	invoked := false
-	nothing.If(
-		func(s string) {
-			t.Errorf("Nothing not expected to invoke If-present: %s", s)
-		},
-		func(e error) {
-			t.Errorf("Nothing not expected to invoke If-error: %s", e)
-		},
-		func() {
+	t.Run("Nothing.Get returns NoSuchElement error", func(t *testing.T) {
+		_, err := nothing.Get()
+		if err != ErrNoSuchElement {
+			t.Errorf("Nothing.Get should return error")
+		}
+	})
+
+	t.Run("Nothing.IfPresent does not call function", func(t *testing.T) {
+		ptr := new(string)
+		*ptr = "123456"
+		nothing.IfPresent(func(s string) {
+			*ptr = "ifpresent"
+		})
+		expect(t, *ptr == "123456", "Nothing.IfPresent should not be invoked")
+	})
+
+	t.Run("Nothing.If invokes only onEmpty function", func(t *testing.T) {
+		invoked := false
+		nothing.If(
+			func(s string) {
+				t.Errorf("Nothing not expected to invoke If-present: %s", s)
+			},
+			func(e error) {
+				t.Errorf("Nothing not expected to invoke If-error: %s", e)
+			},
+			func() {
+				invoked = true
+			})
+		if !invoked {
+			t.Errorf("Nothing expected to invoke If-nothing")
+		}
+	})
+
+	t.Run("Nothing.IfNothing invokes function", func(t *testing.T) {
+		invoked := false
+		nothing.IfNothing(func() {
 			invoked = true
 		})
-	if !invoked {
-		t.Errorf("Nothing expected to invoke If-nothing")
-	}
+		if !invoked {
+			t.Errorf("Nothing expected to invoke If-nothing")
+		}
+	})
+
+	t.Run("Nothing.IfError does not invoke function", func(t *testing.T) {
+		ptr := new(error)
+		*ptr = fmt.Errorf("An error")
+		nothing.IfError(func(e error) {
+			*ptr = e
+		})
+		expect(t, (*ptr).Error() == "An error", "Nothing.IfError should not be invoked")
+	})
 }
 
 func TestJust(t *testing.T) {
@@ -123,67 +159,130 @@ func TestJust(t *testing.T) {
 		value: "whatever",
 	}
 
-	expect(t, just.IsPresent(), "Just.IsPresent should return true")
-	expect(t, just.Filter(False[string]) == Nothing[string]{}, "Just.Filter should return nothing for false")
-	expect(t, just.Filter(True[string]) == just, "Just.Filter should return itself for true")
-	expect(t, just.OrElse("whatever2") == "whatever", "Just.OrElse should return its value")
-	expect(t, just.GetError() == nil, "Just.GetError should return nil")
-
-	upper, _ := just.Map(strings.ToUpper).Get()
-	if upper != "WHATEVER" {
-		t.Errorf("Just.Map expected to change value")
-	}
-
-	value, err := just.Get()
-	if err == ErrNoSuchElement || value != "whatever" {
-		t.Errorf("Nothing.Get should return error")
-	}
-
-	ptr := new(string)
-	*ptr = "123456"
-	just.IfPresent(func(s string) {
-		*ptr = s
+	t.Run("Just basic methods implementation", func(t *testing.T) {
+		expect(t, just.IsPresent(), "Just.IsPresent should return true")
+		expect(t, just.Filter(False[string]) == Nothing[string]{}, "Just.Filter should return nothing for false")
+		expect(t, just.Filter(True[string]) == just, "Just.Filter should return itself for true")
+		expect(t, just.OrElse("whatever2") == "whatever", "Just.OrElse should return its value")
+		expect(t, just.GetError() == nil, "Just.GetError should return nil")
+		expect(t, just.IfPresent(doNothingStr) == just, "Just.IfPresent(...) returns itself")
+		expect(t, just.IfError(doNothingErr) == just, "Just.IfError(...) returns itself")
+		expect(t, just.IfNothing(doNothing) == just, "Just.IfNothing(...) returns itself")
 	})
-	expect(t, *ptr == just.value, "Just.IfPresent should be invoked")
 
-	*ptr = "123456"
-	just.If(
-		func(s string) {
+	t.Run("Just.Map returns updated version", func(t *testing.T) {
+		upper, _ := just.Map(strings.ToUpper).Get()
+		if upper != "WHATEVER" {
+			t.Errorf("Just.Map expected to change value")
+		}
+	})
+
+	t.Run("Just.Get returns value and nil for error", func(t *testing.T) {
+		value, err := just.Get()
+		if err == ErrNoSuchElement || value != "whatever" {
+			t.Errorf("Just.Get should return value and nil error")
+		}
+	})
+
+	t.Run("Just.IfPresent invokes function", func(t *testing.T) {
+		ptr := new(string)
+		*ptr = "123456"
+		just.IfPresent(func(s string) {
 			*ptr = s
-		},
-		func(e error) {
-			t.Errorf("Just not expected to invoke If-error: %s", e)
-		},
-		func() {
-			t.Errorf("Just not expected to invoke If-nothing")
 		})
-	expect(t, *ptr == just.value, "Just.If-present should be invoked")
+		expect(t, *ptr == just.value, "Just.IfPresent should be invoked")
+	})
+
+	t.Run("Just.If invokes only IfPresent function", func(t *testing.T) {
+		ptr := new(string)
+		*ptr = "123456"
+		just.If(
+			func(s string) {
+				*ptr = s
+			},
+			func(e error) {
+				t.Errorf("Just not expected to invoke If-error: %s", e)
+			},
+			func() {
+				t.Errorf("Just not expected to invoke If-nothing")
+			})
+		expect(t, *ptr == just.value, "Just.If-present should be invoked")
+	})
+
+	t.Run("Just.IfNothing does not invoke function", func(t *testing.T) {
+		invoked := false
+		just.IfNothing(func() {
+			invoked = true
+		})
+		if invoked {
+			t.Errorf("Just is not expected to invoke If-nothing")
+		}
+	})
+
+	t.Run("Just.IfError does not invoke function", func(t *testing.T) {
+		ptr := new(error)
+		*ptr = fmt.Errorf("An error")
+		just.IfError(func(e error) {
+			*ptr = e
+		})
+		expect(t, (*ptr).Error() == "An error", "Just.IfPresent should not be invoked")
+	})
+
 }
 
 func TestError(t *testing.T) {
 	e := Error[string]{
 		err: fmt.Errorf("Whatever"),
 	}
-	_, err := e.Get()
-	if err.Error() != "Whatever" {
-		t.Errorf("Error.Get should return internal error, but got %v", err)
-	}
 
-	expect(t, e.GetError().Error() == "Whatever", "Error.GetError should return error")
+	t.Run("Error basic methods implementation", func(t *testing.T) {
+		expect(t, e.GetError().Error() == "Whatever", "Error.GetError should return error")
+		expect(t, e.IfPresent(doNothingStr) == e, "Error.IfPresent(...) returns itself")
+		expect(t, e.IfError(doNothingErr) == e, "Error.IfError(...) returns itself")
+		expect(t, e.IfNothing(doNothing) == e, "Error.IfNothing(...) returns itself")
+	})
 
-	ptr := new(error)
-	*ptr = fmt.Errorf("An error")
-	e.If(
-		func(s string) {
-			t.Errorf("Error not expected to invoke If-present: %s", s)
-		},
-		func(e error) {
-			*ptr = e
-		},
-		func() {
-			t.Errorf("Error not expected to invoke If-nothing")
+	t.Run("Error.Get() returns error value", func(t *testing.T) {
+		_, err := e.Get()
+		if err.Error() != "Whatever" {
+			t.Errorf("Error.Get should return internal error, but got %v", err)
+		}
+	})
+
+	t.Run("Error.If invokes only onError function", func(t *testing.T) {
+		ptr := new(error)
+		*ptr = fmt.Errorf("An error")
+		e.If(
+			func(s string) {
+				t.Errorf("Error not expected to invoke If-present: %s", s)
+			},
+			func(e error) {
+				*ptr = e
+			},
+			func() {
+				t.Errorf("Error not expected to invoke If-nothing")
+			})
+		expect(t, *ptr == e.err, "Just.If-error should be invoked")
+	})
+
+	t.Run("Error.IfNothing does not invoke function", func(t *testing.T) {
+		invoked := false
+		e.IfNothing(func() {
+			invoked = true
 		})
-	expect(t, *ptr == e.err, "Just.If-error should be invoked")
+		if invoked {
+			t.Errorf("Just is not expected to invoke If-nothing")
+		}
+	})
+
+	t.Run("Error.IfError does invokes function", func(t *testing.T) {
+		ptr := new(error)
+		*ptr = fmt.Errorf("An error")
+		e.IfError(func(e error) {
+			*ptr = e
+		})
+		expect(t, (*ptr).Error() == e.err.Error(), "Error.IfError should be invoked")
+	})
 }
 
 func TestMap(t *testing.T) {

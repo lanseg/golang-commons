@@ -20,7 +20,9 @@ func True[T any](value T) bool {
 // Optional is a wrapper that can contain value, nothing or error.
 type Optional[T any] interface {
 	IsPresent() bool
-	IfPresent(func(T))
+	IfPresent(func(T)) Optional[T]
+	IfError(func(error)) Optional[T]
+	IfNothing(func()) Optional[T]
 	If(present func(T), err func(error), nothing func())
 	Filter(p Predicate[T]) Optional[T]
 	OrElse(other T) T
@@ -40,8 +42,17 @@ func (j Just[T]) IsPresent() bool {
 	return true
 }
 
-func (j Just[T]) IfPresent(f func(T)) {
+func (j Just[T]) IfPresent(f func(T)) Optional[T] {
 	f(j.value)
+	return j
+}
+
+func (j Just[T]) IfError(func(error)) Optional[T] {
+	return j
+}
+
+func (j Just[T]) IfNothing(func()) Optional[T] {
+	return j
 }
 
 func (j Just[T]) Filter(p Predicate[T]) Optional[T] {
@@ -81,7 +92,18 @@ func (n Nothing[T]) IsPresent() bool {
 	return false
 }
 
-func (n Nothing[T]) IfPresent(_ func(T)) {}
+func (n Nothing[T]) IfPresent(func(T)) Optional[T] {
+	return n
+}
+
+func (n Nothing[T]) IfError(func(error)) Optional[T] {
+	return n
+}
+
+func (n Nothing[T]) IfNothing(f func()) Optional[T] {
+	f()
+	return n
+}
 
 func (n Nothing[T]) Filter(p Predicate[T]) Optional[T] {
 	return n
@@ -120,6 +142,19 @@ func (e Error[T]) Get() (T, error) {
 
 func (e Error[T]) GetError() error {
 	return e.err
+}
+
+func (e Error[T]) IfPresent(func(T)) Optional[T] {
+	return e
+}
+
+func (e Error[T]) IfError(f func(error)) Optional[T] {
+	f(e.err)
+	return e
+}
+
+func (e Error[T]) IfNothing(func()) Optional[T] {
+	return e
 }
 
 func (e Error[T]) If(present func(T), err func(error), nothing func()) {
