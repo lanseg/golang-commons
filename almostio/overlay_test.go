@@ -184,15 +184,22 @@ func TestOverlay(t *testing.T) {
 
 	veryLongName := makeString(1000)
 	for _, tc := range []struct {
-		name          string
-		originalFiles []*sampleFile
-		expectedFiles []*sampleFile
+		name             string
+		originalFiles    []*sampleFile
+		expectedFiles    []*sampleFile
+		expectedMetadata []*FileMetadata
 	}{
 		{
 			name: "Single file name",
 			originalFiles: []*sampleFile{{
 				originalFileName: "Whatever",
 				content:          []byte{1, 2, 3},
+			}},
+			expectedMetadata: []*FileMetadata{{
+				Name:      "Whatever",
+				LocalName: "d4ae358f_Whatever",
+				Sha256:    "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+				Mime:      "application/octet-stream",
 			}},
 		},
 		{
@@ -201,12 +208,24 @@ func TestOverlay(t *testing.T) {
 				originalFileName: "A spaces file name",
 				content:          []byte{1, 2, 3, 4, 5},
 			}},
+			expectedMetadata: []*FileMetadata{{
+				Name:      "A spaces file name",
+				LocalName: "89493756_A_spaces_file_name",
+				Sha256:    "74f81fe167d99b4cb41d6d0ccda82278caee9f3e2f25d5e5a3936ff3dcec60d0",
+				Mime:      "application/octet-stream",
+			}},
 		},
 		{
 			name: "File name with unicode",
 			originalFiles: []*sampleFile{{
 				originalFileName: "Немного ユニコード",
 				content:          []byte{1, 2, 3, 4, 5},
+			}},
+			expectedMetadata: []*FileMetadata{{
+				Name:      "Немного ユニコード",
+				LocalName: "7ab716af__",
+				Sha256:    "74f81fe167d99b4cb41d6d0ccda82278caee9f3e2f25d5e5a3936ff3dcec60d0",
+				Mime:      "application/octet-stream",
 			}},
 		},
 		{
@@ -215,6 +234,12 @@ func TestOverlay(t *testing.T) {
 				originalFileName: "some/file/path",
 				content:          []byte{1, 2, 3, 4, 5},
 			}},
+			expectedMetadata: []*FileMetadata{{
+				Name:      "some/file/path",
+				LocalName: "d7aeb9d2_some_file_path",
+				Sha256:    "74f81fe167d99b4cb41d6d0ccda82278caee9f3e2f25d5e5a3936ff3dcec60d0",
+				Mime:      "application/octet-stream",
+			}},
 		},
 		{
 			name: "Empty file",
@@ -222,12 +247,32 @@ func TestOverlay(t *testing.T) {
 				originalFileName: "some empty file",
 				content:          []byte{},
 			}},
+			expectedMetadata: []*FileMetadata{{
+				Name:      "some empty file",
+				LocalName: "d78d0606_some_empty_file",
+				Sha256:    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				Mime:      "text/plain; charset=utf-8",
+			}},
 		},
 		{
 			name: "Two files different names",
 			originalFiles: []*sampleFile{
 				{"File 1", []byte{1, 2, 3}},
 				{"File 2", []byte{4, 5, 6}},
+			},
+			expectedMetadata: []*FileMetadata{
+				{
+					Name:      "File 1",
+					LocalName: "644fe258_File_1",
+					Sha256:    "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+					Mime:      "application/octet-stream",
+				},
+				{
+					Name:      "File 2",
+					LocalName: "674fe711_File_2",
+					Sha256:    "787c798e39a5bc1910355bae6d0cd87a36b2e10fd0202a83e3bb6b005da83472",
+					Mime:      "application/octet-stream",
+				},
 			},
 		},
 		{
@@ -239,6 +284,12 @@ func TestOverlay(t *testing.T) {
 			expectedFiles: []*sampleFile{
 				{"File 1", []byte{4, 5, 6}},
 			},
+			expectedMetadata: []*FileMetadata{{
+				Name:      "File 1",
+				LocalName: "644fe258_File_1",
+				Sha256:    "787c798e39a5bc1910355bae6d0cd87a36b2e10fd0202a83e3bb6b005da83472",
+				Mime:      "application/octet-stream",
+			}},
 		},
 		{
 			name: "Very long file name",
@@ -262,6 +313,12 @@ func TestOverlay(t *testing.T) {
 					0x42, 0x60, 0x82,
 				}},
 			},
+			expectedMetadata: []*FileMetadata{{
+				Name:      "File 1",
+				LocalName: "644fe258_File_1",
+				Sha256:    "836c5e8c94b74be78456122528bb2a44b4cf61b3922f211e2bae5bf327f95f09",
+				Mime:      "image/png",
+			}},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -300,6 +357,23 @@ func TestOverlay(t *testing.T) {
 
 			if !reflect.DeepEqual(result, tc.expectedFiles) {
 				t.Errorf("Expected result to be %v, but got %v", tc.expectedFiles, result)
+			}
+
+			if tc.expectedMetadata != nil {
+				names := []string{}
+				for _, fn := range tc.expectedFiles {
+					names = append(names, fn.originalFileName)
+				}
+
+				md := o.GetMetadata(names)
+				if len(md) != len(tc.expectedMetadata) {
+					t.Errorf("Expected metadata to have length %d, but got %d", len(md), len(tc.expectedMetadata))
+				}
+				for i, mdata := range md {
+					if !reflect.DeepEqual(tc.expectedMetadata[i], mdata) {
+						t.Errorf("Metadata for %s differs", names[i])
+					}
+				}
 			}
 		})
 	}

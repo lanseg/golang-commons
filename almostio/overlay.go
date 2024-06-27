@@ -37,6 +37,7 @@ type FileMetadata struct {
 type Overlay interface {
 	OpenRead(name string) (io.ReadCloser, error)
 	OpenWrite(name string) (io.WriteCloser, error)
+	GetMetadata(names []string) []*FileMetadata
 }
 
 // OverlayMetadata contains a system information for the overlay (e.g. file list)
@@ -130,6 +131,16 @@ func (lo *localOverlay) OpenWrite(name string) (io.WriteCloser, error) {
 				Mime:      http.DetectContentType(mimeBuffer.Bytes()),
 			})
 		}), nil
+}
+
+func (lo *localOverlay) GetMetadata(names []string) []*FileMetadata {
+	lo.lock.Lock()
+	defer lo.lock.Unlock()
+	result := make([]*FileMetadata, len(names))
+	for i, name := range names {
+		result[i] = lo.metadata.FileMetadata[name]
+	}
+	return result
 }
 
 func NewLocalOverlay(root string, marshaller *Marshaller[OverlayMetadata]) (Overlay, error) {
